@@ -1,0 +1,50 @@
+{
+    "version": "v1",
+    "metrics": [
+        {
+            "metric_id": "admissions_count",
+            "name": "Conteo de Ingresos",
+            "definition": "Número total de ingresos de pacientes por vía de ingreso o clase.",
+            "grain": "Ingreso",
+            "unit": "ingresos",
+            "dimensions": ["admission_route", "admission_class", "triage_code", "admission_date", "bed_name", "bed_group", "bed_subgroup"],
+            "sql_template": "SELECT count(*) as value FROM v_admissions_daily WHERE 1=1"
+        },
+        {
+            "metric_id": "wait_mean",
+            "name": "Tiempo Promedio de Espera",
+            "definition": "Tiempo promedio en minutos desde el ingreso hasta la primera atención médica.",
+            "grain": "Ingreso",
+            "unit": "minutos",
+            "dimensions": ["triage_code", "admission_date"],
+            "sql_template": "SELECT sum(wait_minutes) / cast(count(wait_minutes) as float) as value FROM v_wait_daily WHERE wait_minutes >= 0 AND wait_minutes IS NOT NULL"
+        },
+        {
+            "metric_id": "triage_distribution",
+            "name": "Distribución de Triage",
+            "definition": "Cantidad de triages realizados agrupados por clasificación.",
+            "grain": "Triage",
+            "unit": "triages",
+            "dimensions": ["triage_class", "triage_code", "triage_date"],
+            "sql_template": "SELECT triage_class, count(*) as value FROM v_triage_daily WHERE 1=1 GROUP BY triage_class"
+        },
+        {
+            "metric_id": "medication_dispensed",
+            "name": "Medicamentos Dispensados",
+            "definition": "Cantidad de medicamentos dispensados agrupados por producto.",
+            "grain": "Medicamento",
+            "unit": "unidades",
+            "dimensions": ["medication_name", "delivery_date"],
+            "sql_template": "SELECT medication_name, sum(quantity) as value FROM v_medication_daily WHERE 1=1 GROUP BY medication_name"
+        },
+        {
+            "metric_id": "services_by_specialty",
+            "name": "Servicios por Especialidad",
+            "definition": "Número de episodios únicos de servicio por especialidad.",
+            "grain": "Servicio",
+            "unit": "servicios",
+            "dimensions": ["specialty", "service_date"],
+            "sql_template": "SELECT specialty, count(DISTINCT admission_id) as value FROM v_services_daily WHERE 1=1 GROUP BY specialty"
+        }
+    ]
+}

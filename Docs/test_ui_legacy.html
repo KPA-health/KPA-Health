@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>NL2SQL Test UI</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { padding: 10px 15px; background: #0066cc; color: #fff; border: none; cursor: pointer; font-size: 16px; }
+        button:hover { background: #005bb5; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
+        .loading { display: none; color: #ff6600; font-weight: bold; margin-top: 10px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+    <h1>Prueba Funcional: NL2SQL Híbrido</h1>
+    
+    <div class="form-group">
+        <label for="modelProfile">Selecciona el perfil de modelo (Backend):</label>
+        <select id="modelProfile">
+            <option value="qwen_local">qwen_local (Ollama 4b)</option>
+            <option value="gemini_online">gemini_online (Gemini 1.5 API - Ejemplo Nube)</option>
+            <option value="sqlcoder_local">sqlcoder_local (OpenAI Compatible Local)</option>
+        </select>
+        <small>Para que "gemini_online" funcione, debes agregarlo al config/models.yaml en el backend e indicar la API KEY en el .env.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="question">Pregunta NL2SQL:</label>
+        <input type="text" id="question" placeholder="Ej: ¿cuantas camas de uci estan ocupadas hoy? o ¿cuántos ingresos hubo?">
+    </div>
+
+    <button onclick="askNL2SQL()">Consultar</button>
+    <div id="loading" class="loading">Consultando al backend y modelo... (puede tomar unos segundos)</div>
+
+    <div class="result" id="resultContainer" style="display: none;">
+        <h3>Resultado</h3>
+        <p><strong>Status:</strong> <span id="resStatus"></span></p>
+        <p><strong>Origen:</strong> <span id="resSource"></span> (modelo o plantilla)</p>
+        <p><strong>Mensaje:</strong> <span id="resMessage"></span></p>
+        <p><strong>Advertencias:</strong> <span id="resWarnings"></span></p>
+
+        <h4>Datos (Filas)</h4>
+        <div id="tableContainer"></div>
+    </div>
+
+    <script>
+        async function askNL2SQL() {
+            const question = document.getElementById('question').value;
+            const modelProfile = document.getElementById('modelProfile').value;
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultContainer').style.display = 'none';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: question,
+                        model_profile: modelProfile
+                    })
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('resStatus').innerText = data.status;
+                document.getElementById('resSource').innerText = data.source;
+                document.getElementById('resMessage').innerText = data.message || '';
+                document.getElementById('resWarnings').innerText = (data.warnings || []).join(', ');
+                
+                const tableContainer = document.getElementById('tableContainer');
+                tableContainer.innerHTML = '';
+                
+                if (data.rows && data.rows.length > 0) {
+                    const table = document.createElement('table');
+                    const thead = document.createElement('thead');
+                    const trHead = document.createElement('tr');
+                    
+                    // headers
+                    Object.keys(data.rows[0]).forEach(key => {
+                        const th = document.createElement('th');
+                        th.innerText = key;
+                        trHead.appendChild(th);
+                    });
+                    thead.appendChild(trHead);
+                    table.appendChild(thead);
+                    
+                    const tbody = document.createElement('tbody');
+                    data.rows.forEach(row => {
+                        const tr = document.createElement('tr');
+                        Object.values(row).forEach(val => {
+                            const td = document.createElement('td');
+                            td.innerText = val;
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+                    tableContainer.appendChild(table);
+                } else {
+                    tableContainer.innerHTML = '<i>Sin datos.</i>';
+                }
+                
+                document.getElementById('resultContainer').style.display = 'block';
+
+            } catch (err) {
+                alert("Error al conectar con el backend: " + err.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
