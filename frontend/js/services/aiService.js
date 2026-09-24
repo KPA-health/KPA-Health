@@ -9,7 +9,7 @@ window.MediPulse = window.MediPulse || {};
 MediPulse.AIService = {
   /** Estado de los motores Local/Nube y de la voz (GET /api/ai/providers). */
   async providers() {
-    return MediPulse.ApiClient.get('/ai/providers', {}, { fallback: 'network-only', timeoutMs: 6000 });
+    return MediPulse.ApiClient.get('/ai/providers', {}, { fallback: 'network-only', timeoutMs: 15000 });
   },
 
   /**

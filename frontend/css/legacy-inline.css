@@ -86,10 +86,4 @@
       background-size: cover;
       background-position: center;
     }
-    .main-bg-image {
-      background-image: linear-gradient(rgba(248, 250, 249, 0.93), rgba(248, 250, 249, 0.93)), url('../img/fondo.jpeg');
-      background-size: cover;
-      background-position: center;
-      background-attachment: fixed;
-    }
     .login-logo { width: 5rem; height: 5rem; }
