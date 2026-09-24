@@ -2,11 +2,11 @@
 Datos semilla de las tablas operativas (capa Modelo).
 
 - SERVICE_MAPPING: normaliza NombreGrupoCama del HIS a nombres de servicio
-  alineados con los departamentos del frontend (front-kpa/js/config.js).
+  alineados con los departamentos del frontend (frontend/js/config.js).
 - DEMO_DOCTORS / DEMO_APPOINTMENTS: el extracto del HIS no trae personal
   médico ni agenda de citas. Para que los módulos de médicos y citas del
   frontend funcionen contra la API real, se siembran los mismos registros
-  ficticios de front-kpa/js/mockData.js (marcados con Origen = 'Demo').
+  ficticios de frontend/js/mockData.js (marcados con Origen = 'Demo').
   Por privacidad, las citas guardan un seudónimo del paciente, nunca su nombre.
 
 Las claves de los diccionarios son nombres de columnas de la BD (esquema en español).

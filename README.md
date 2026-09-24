@@ -39,7 +39,7 @@ La arquitectura, las decisiones técnicas y los patrones de diseño están docum
 
 ```
  VISTA                         CONTROLADOR                 MODELO
- front-kpa (SPA)  ──HTTP──►  backend/controllers  ──►  backend/models  ──►  SQLite hospital.db
+ frontend (SPA)  ──HTTP──►  backend/controllers  ──►  backend/models  ──►  SQLite hospital.db
    │ fallback automático            │
    └──► mockData.js                 └──► backend/services
                                          ├── ai_agent/        IA local (Ollama/Qwen3) o nube (OpenRouter/Gemini)
@@ -58,7 +58,7 @@ La arquitectura, las decisiones técnicas y los patrones de diseño están docum
 │   ├── schemas/           DTOs Pydantic (contrato JSON con la SPA)
 │   ├── services/          Agente IA NL2SQL, Whisper, procesamiento de archivos y autenticación
 │   └── core/              Configuración, errores HTTP, privacidad y utilidades
-├── front-kpa/             VISTA: SPA (index.html + js/services, js/views, js/components, app.js)
+├── frontend/              VISTA: SPA (index.html + js/services, js/views, js/components, app.js)
 ├── data/                  Datasets del HIS (.txt separados por "|")
 ├── tests/                 Pruebas automáticas (pytest)
 ├── deploy/                Script de preparación para PythonAnywhere
@@ -184,7 +184,7 @@ python -m pytest
 | `AUTH_ENABLED` | `false` para desactivar el login (acceso libre como administrador) |
 | `JWT_SECRET` / `JWT_EXPIRE_MINUTES` | Secreto de firma y duración de la sesión |
 
-En el frontend, `front-kpa/js/config.js` tiene los *feature flags* `ENABLE_VOICE_INPUT` (mostrar u ocultar el micrófono) y `VOICE_AUTO_SUBMIT`.
+En el frontend, `frontend/js/config.js` tiene los *feature flags* `ENABLE_VOICE_INPUT` (mostrar u ocultar el micrófono) y `VOICE_AUTO_SUBMIT`.
 
 ## 5. Despliegue en PythonAnywhere
 

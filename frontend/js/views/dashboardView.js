@@ -12,6 +12,8 @@ MediPulse.BI = {
   loading: false,
   pending: false,
   refreshTimer: null,
+  insightsEnd: null,          // fecha de análisis de alertas y causa raíz (null = fecha de referencia)
+  insightsLoaded: false,
   palette: ['#1f4a2a', '#3b8070', '#9ed3a2', '#e11d48', '#f59e0b', '#3b82f6', '#8b5cf6', '#14b8a6', '#64748b', '#f97316'],
 
   applyFilters() {
@@ -32,6 +34,7 @@ MediPulse.BI = {
   async render(options = {}) {
     if (this.loading) { this.pending = true; return; }
     this.loading = true;
+    if (!this.insightsLoaded) this.renderInsights();   // una sola vez: el autorrefresco no recalcula alertas
     const section = document.getElementById('view-bi');
     if (!options.silent) section.classList.add('opacity-70');
     try {
@@ -131,7 +134,217 @@ MediPulse.BI = {
 
     // 4. Gráficos
     this.renderCharts(d);
+    this.paintManagement(d);
     lucide.createIcons();
+  },
+
+  // 7. Indicadores de gestión del reto: espera por triage, especialidades, rotación y ocupación mensual
+  paintManagement(d) {
+    const esc = MediPulse.UI.escape;
+    const k = d.kpis || {};
+    const period = d.periodLabel || 'periodo';
+    setText('kpi-avg-stay', k.avgLengthOfStayDays !== null && k.avgLengthOfStayDays !== undefined ? `${fmtNumber(k.avgLengthOfStayDays, 1)} días` : '—');
+    setText('kpi-bed-turnover', k.bedTurnover !== null && k.bedTurnover !== undefined ? `${fmtNumber(k.bedTurnover, 2)} ingresos/cama` : '—');
+
+    // Espera por nivel de triage (colores del triage: 1 rojo ... 5 azul)
+    const triage = d.waitByTriage || [];
+    const triageColors = { 1: '#e11d48', 2: '#f97316', 3: '#f59e0b', 4: '#059669', 5: '#2563eb' };
+    setText('bi-triage-subtitle', `Minutos promedio de triage a primera atención · ${period}`);
+    this.makeChart('esperaTriage', 'chart-espera-triage', {
+      type: 'bar',
+      data: {
+        labels: triage.map(t => `Triage ${t.level}`),
+        datasets: [{ label: 'Espera promedio (min)', data: triage.map(t => t.avgMinutes), backgroundColor: triage.map(t => triageColors[t.level] || '#64748b'), borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: ctx => `${fmtNumber(triage[ctx.dataIndex].patients)} pacientes` } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'minutos' } }, x: { grid: { display: false } } }
+      }
+    });
+
+    // Especialidades más solicitadas (barras horizontales)
+    const specialties = d.topSpecialties || [];
+    setText('bi-specialties-subtitle', `Ingresos por especialidad principal · ${period}`);
+    const shortName = name => (name.length > 26 ? `${name.substring(0, 26)}…` : name);
+    this.makeChart('especialidades', 'chart-especialidades', {
+      type: 'bar',
+      data: {
+        labels: specialties.map(s => shortName(s.specialty)),
+        datasets: [{ label: 'Ingresos', data: specialties.map(s => s.admissions), backgroundColor: '#3b8070', borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => specialties[items[0].dataIndex].specialty } } },
+        scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 10 } } } }
+      }
+    });
+
+    // Rotación de farmacia: mayor y menor consumo de 30 días
+    const rotation = d.medicationRotation || { highest: [], lowest: [] };
+    setText('bi-rotation-subtitle', rotation.totalItems
+      ? `Unidades dispensadas en los últimos 30 días · ${fmtNumber(rotation.withoutMovement30d)} de ${fmtNumber(rotation.totalItems)} ítems sin movimiento`
+      : 'Unidades dispensadas en los últimos 30 días');
+    const rotationList = items => (items || []).map(m => `
+      <div class="py-1.5 flex items-center justify-between gap-2 text-xs">
+        <span class="text-slate-700 truncate" title="${esc(m.name)}">${esc(m.name)}</span>
+        <span class="shrink-0 text-right">
+          <span class="font-bold text-primary">${fmtNumber(m.units30d)}</span>
+          ${m.rotationIndex !== null && m.rotationIndex !== undefined ? `<span class="block text-[10px] text-slate-400">${fmtNumber(m.rotationIndex, 1)}× stock/mes</span>` : ''}
+        </span>
+      </div>`).join('') || '<p class="text-xs text-slate-400">Sin datos</p>';
+    document.getElementById('bi-rotation-high').innerHTML = rotationList(rotation.highest);
+    document.getElementById('bi-rotation-low').innerHTML = rotationList(rotation.lowest);
+
+    // Ocupación promedio mensual por servicio (tabla con color por nivel de ocupación)
+    const monthly = d.monthlyOccupancy || { months: [], rows: [] };
+    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const monthLabel = m => `${monthNames[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)}`;
+    const cellClass = v => (v === null || v === undefined ? 'text-slate-300'
+      : v >= 85 ? 'bg-rose-100 text-rose-700 font-bold' : v >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700');
+    document.getElementById('bi-monthly-occupancy').innerHTML = monthly.rows.length ? `
+      <table class="w-full text-xs">
+        <thead class="text-[10px] uppercase text-slate-500">
+          <tr><th class="text-left p-1.5">Servicio</th>${monthly.months.map(m => `<th class="p-1.5 text-center">${monthLabel(m)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${monthly.rows.map(r => `
+          <tr class="border-t border-slate-100">
+            <td class="p-1.5 font-semibold text-slate-700 whitespace-nowrap">${esc(r.service)}</td>
+            ${r.values.map(v => `<td class="p-1.5 text-center rounded ${cellClass(v)}">${v === null || v === undefined ? '—' : `${fmtNumber(v, 0)}%`}</td>`).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="text-[10px] text-slate-400 mt-2">Rojo ≥ 85 % (saturación) · ámbar 60-85 % · verde &lt; 60 %</p>`
+      : '<p class="text-xs text-slate-400">Sin histórico de ocupación.</p>';
+  },
+
+  // 5. Alertas e insights con fecha de análisis (GET /api/insights/briefing)
+  async setAnalysisDate(end) {
+    this.insightsEnd = end || null;
+    const panelOpen = !document.getElementById('bi-rootcause-panel').classList.contains('hidden');
+    await Promise.all([this.renderInsights(), panelOpen ? this.diagnoseWait(this.insightsEnd, { scroll: false }) : null]);
+  },
+
+  async renderInsights() {
+    this.insightsLoaded = true;
+    const list = document.getElementById('bi-insights-list');
+    setText('bi-insights-headline', 'Revisando las alertas del hospital…');
+    try {
+      const data = await MediPulse.InsightsService.briefing(this.insightsEnd);
+      document.getElementById('bi-insights-end').value = data.periodEnd || '';
+      setText('bi-insights-headline', `${data.headline} Semana analizada: ${fmtDate(data.periodStart)} al ${fmtDate(data.periodEnd)}.`);
+      list.innerHTML = (data.items || []).map(item => MediPulse.UI.alertCard(item, { detail: true })).join('')
+        || '<p class="text-xs text-slate-400">No hay alertas activas para esta fecha.</p>';
+    } catch (error) {
+      setText('bi-insights-headline', `No se pudieron calcular las alertas: ${error.message}`);
+      list.innerHTML = '';
+    }
+    lucide.createIcons();
+  },
+
+  // 6. Diagnóstico de causa raíz de la espera (GET /api/insights/wait-drivers)
+  openDiagnosis(end = null) {
+    if (MediPulse.Navigation.currentView !== 'view-bi') MediPulse.Navigation.switchView('view-bi');
+    // Desde el chat llega la fecha del resumen: el dashboard se alinea a esa misma fecha
+    if (end && end !== this.insightsEnd) {
+      this.insightsEnd = end;
+      this.renderInsights();
+    }
+    this.diagnoseWait(this.insightsEnd);
+  },
+
+  closeDiagnosis() {
+    document.getElementById('bi-rootcause-panel').classList.add('hidden');
+  },
+
+  async diagnoseWait(end = null, { scroll = true } = {}) {
+    const panel = document.getElementById('bi-rootcause-panel');
+    panel.classList.remove('hidden');     // visible antes de dibujar: Chart.js necesita el tamaño real
+    setText('bi-rootcause-period', 'Analizando…');
+    try {
+      this.paintDiagnosis(await MediPulse.InsightsService.waitDrivers(end || null));
+    } catch (error) {
+      setText('bi-rootcause-period', '');
+      document.getElementById('bi-rootcause-summary').innerHTML =
+        `<p class="text-rose-700">No se pudo calcular el diagnóstico: ${MediPulse.UI.escape(error.message)}</p>`;
+    }
+    if (scroll) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    lucide.createIcons();
+  },
+
+  paintDiagnosis(d) {
+    const esc = MediPulse.UI.escape;
+    document.getElementById('bi-rootcause-end').value = d.periodEnd || '';
+    setText('bi-rootcause-period', `Semana del ${fmtDate(d.periodStart)} al ${fmtDate(d.periodEnd)} frente a las 4 semanas anteriores · ${fmtNumber((d.patients || {}).current)} pacientes`);
+
+    const [box, badge] = !d.significant
+      ? ['bg-slate-50 border-slate-200', 'Sin cambio significativo']
+      : (d.deltaMinutes > 0
+        ? ['bg-rose-50 border-rose-200', `Subió ${fmtNumber(d.deltaMinutes, 1)} min`]
+        : ['bg-emerald-50 border-emerald-200', `Bajó ${fmtNumber(Math.abs(d.deltaMinutes), 1)} min`]);
+    document.getElementById('bi-rootcause-summary').innerHTML = `
+      <div class="rounded-xl border ${box} p-3 sm:p-4 space-y-2">
+        <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+          <span class="text-slate-500">Espera promedio:</span>
+          <span class="text-slate-800">${fmtNumber(d.baselineAvgMinutes, 1)} → ${fmtNumber(d.currentAvgMinutes, 1)} min</span>
+          <span class="px-2 py-0.5 rounded-full bg-white border border-slate-200 text-[10px]">${badge}</span>
+        </div>
+        <p>${esc(d.summary)}</p>
+        ${d.recommendation ? `
+        <p class="font-semibold text-primary flex items-start gap-1.5">
+          <i data-lucide="lightbulb" class="w-4 h-4 mt-0.5 shrink-0 text-amber-500"></i><span>${esc(d.recommendation)}</span>
+        </p>` : ''}
+      </div>`;
+
+    document.getElementById('bi-rootcause-load').innerHTML = (d.shiftLoad || []).map(s => {
+      const up = (s.changePct || 0) > 0;
+      const change = s.changePct === null || s.changePct === undefined
+        ? '—' : `${up ? '+' : ''}${fmtNumber(s.changePct, 1)}% vs ${fmtNumber(s.baselinePerDay, 1)}/día`;
+      return `
+        <div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs">
+          <div><p class="font-bold text-slate-800">${esc(s.shift)}</p><p class="text-[10px] text-slate-400">${esc(s.hours)}</p></div>
+          <div class="text-right">
+            <p class="font-black text-primary">${fmtNumber(s.currentPerDay, 1)}/día</p>
+            <p class="text-[10px] ${up ? 'text-rose-600' : 'text-emerald-600'}">${change}</p>
+          </div>
+        </div>`;
+    }).join('');
+
+    // Barras horizontales: aporte de cada segmento al cambio; el factor principal en rojo
+    const drivers = (d.drivers || []).slice(0, 8);
+    const direction = d.deltaMinutes >= 0 ? 1 : -1;
+    const colors = drivers.map((x, i) => (d.significant && i === 0)
+      ? '#e11d48'
+      : (direction * x.contribution > 0 ? '#3b8070' : '#9ed3a2'));
+    this.makeChart('rootcause', 'chart-rootcause', {
+      type: 'bar',
+      data: {
+        labels: drivers.map(x => x.label),
+        datasets: [{ label: 'Aporte (min)', data: drivers.map(x => x.contribution), backgroundColor: colors, borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const x = drivers[ctx.dataIndex];
+                return [
+                  `Aporte: ${fmtNumber(x.contribution, 2)} min (${x.type === 'mezcla' ? 'más pacientes' : 'esperaron más'})`,
+                  `Espera: ${fmtNumber(x.baselineAvg, 0)} → ${fmtNumber(x.currentAvg, 0)} min`,
+                  `Pacientes: ${fmtNumber(100 * x.baselineShare, 1)}% → ${fmtNumber(100 * x.currentShare, 1)}%`
+                ];
+              }
+            }
+          }
+        },
+        scales: { x: { title: { display: true, text: 'minutos de cambio en la espera promedio' } } }
+      }
+    });
   },
 
   syncServiceOptions(services, selected) {

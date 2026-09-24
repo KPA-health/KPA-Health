@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 
 from backend.controllers import (
     appointment_controller, assistant_controller, auth_controller, bed_controller, dashboard_controller,
-    doctor_controller, patient_controller, pharmacy_controller, system_controller, upload_controller,
+    doctor_controller, insights_controller, patient_controller, pharmacy_controller, system_controller, upload_controller,
 )
 from backend.controllers.dependencies import require_permission
 from backend.services.auth.permissions import PERM_ADMISSIONS, PERM_ASSISTANT, PERM_DASHBOARD, PERM_DATA
@@ -29,6 +29,8 @@ PUBLIC_ROUTERS = [auth_controller.router, system_controller.router]
 PROTECTED_ROUTERS: list[tuple[APIRouter, str]] = [
     (dashboard_controller.dashboard_router, PERM_DASHBOARD),
     (dashboard_controller.stats_router, PERM_DASHBOARD),
+    (dashboard_controller.kpis_router, PERM_DASHBOARD),
+    (insights_controller.router, PERM_DASHBOARD),
     (pharmacy_controller.router, PERM_DASHBOARD),
     (patient_controller.router, PERM_ADMISSIONS),
     (bed_controller.router, PERM_ADMISSIONS),

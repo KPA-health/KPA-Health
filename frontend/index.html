@@ -427,6 +427,9 @@
                   <h3 id="kpi-wait-time" class="text-2xl sm:text-3xl font-black text-secondary">—</h3>
                 </div>
                 <p id="kpi-wait-subtitle" class="text-xs text-slate-600 font-medium mt-1">Promedio de ingreso</p>
+                <button type="button" onclick="MediPulse.BI.openDiagnosis()" class="mt-2 inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/10 text-secondary hover:bg-secondary hover:text-white text-[10px] font-bold transition-colors">
+                  <i data-lucide="search" class="w-3 h-3"></i> Diagnosticar causa raíz
+                </button>
               </div>
               <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center font-bold shadow-sm z-10 shrink-0">
                 <i data-lucide="clock" class="w-5 h-5 sm:w-6 sm:h-6"></i>
@@ -458,6 +461,72 @@
                 <i data-lucide="pill" class="w-5 h-5 sm:w-6 sm:h-6"></i>
               </div>
             </div>
+          </div>
+
+          <!-- FILA 2B: ALERTAS E INSIGHTS con fecha de análisis (GET /api/insights/briefing) -->
+          <div id="bi-insights" class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="bell-ring" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Alertas e insights
+                </h3>
+                <p id="bi-insights-headline" class="text-[11px] sm:text-xs text-slate-500">Revisando las alertas del hospital…</p>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-[11px] text-slate-500 flex items-center gap-1.5">Fecha de análisis
+                  <input id="bi-insights-end" type="date" onchange="MediPulse.BI.setAnalysisDate(this.value)" class="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                </label>
+                <button type="button" onclick="MediPulse.BI.setAnalysisDate(null)" title="Volver a la fecha del último dato del HIS" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-[11px] font-bold">
+                  Último dato
+                </button>
+                <button type="button" onclick="MediPulse.BI.openDiagnosis()" class="px-2.5 py-1 rounded-lg bg-primary text-tertiary hover:bg-primary-dark text-[11px] font-bold flex items-center gap-1">
+                  <i data-lucide="search" class="w-3.5 h-3.5"></i> Causa raíz de la espera
+                </button>
+              </div>
+            </div>
+            <div id="bi-insights-list" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
+            <p class="text-[10px] text-slate-400">
+              Picos de demanda: ingresos por familia clínica (CIE-10) frente a las 4 semanas previas, con prueba de Poisson al 95 %
+              y tendencia lineal; los medicamentos asociados se aprenden del consumo real. Calculado sin IA generativa.
+            </p>
+          </div>
+
+          <!-- PANEL: Diagnóstico de causa raíz de la espera (GET /api/insights/wait-drivers) -->
+          <div id="bi-rootcause-panel" class="hidden bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft space-y-4 scroll-mt-4">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="search" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Diagnóstico: causa raíz del tiempo de espera
+                </h3>
+                <p id="bi-rootcause-period" class="text-[11px] sm:text-xs text-slate-500">—</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-[11px] text-slate-500 flex items-center gap-1.5">Semana que termina el
+                  <input id="bi-rootcause-end" type="date" onchange="MediPulse.BI.setAnalysisDate(this.value)" class="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                </label>
+                <button type="button" onclick="MediPulse.BI.closeDiagnosis()" aria-label="Cerrar diagnóstico" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500">
+                  <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+            <div id="bi-rootcause-summary" class="text-xs sm:text-sm text-slate-700 leading-relaxed"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div class="lg:col-span-2 min-w-0">
+                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Aporte al cambio de la espera por triage y turno</p>
+                <div class="relative h-64"><canvas id="chart-rootcause"></canvas></div>
+              </div>
+              <div>
+                <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Pacientes por día en cada turno</p>
+                <div id="bi-rootcause-load" class="space-y-2"></div>
+              </div>
+            </div>
+            <p class="text-[10px] text-slate-400">
+              Método: se compara la semana con las 4 anteriores (prueba z al 95 %) y el cambio se descompone en
+              <b>mezcla</b> (llegaron más pacientes de un tipo) y <b>desempeño</b> (ese tipo de paciente esperó más).
+              La suma de los aportes es exactamente el cambio total. Calculado sin IA generativa.
+            </p>
           </div>
 
           <!-- FILA 3: GRÁFICOS SUPERIORES (Tendencia y Pastel) -->
@@ -550,6 +619,72 @@
             <p id="bi-meds-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Stock actual frente al mínimo de seguridad</p>
             <div class="relative h-64 w-full">
               <canvas id="chart-medicamentos"></canvas>
+            </div>
+          </div>
+
+          <!-- FILA 6: INDICADORES DE GESTIÓN DEL RETO (GET /api/kpis) -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="activity" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Indicadores de gestión hospitalaria
+                </h3>
+                <p id="bi-mgmt-subtitle" class="text-[11px] sm:text-xs text-slate-500">Espera por triage, demanda por especialidad, rotación de farmacia y ocupación mensual</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <div class="px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-soft" title="Promedio de días de estancia de los ingresos hospitalarios del periodo">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Estancia promedio</p>
+                  <p id="kpi-avg-stay" class="text-lg font-black text-primary">—</p>
+                </div>
+                <div class="px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-soft" title="Ingresos hospitalarios del periodo por cama disponible">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Giro cama</p>
+                  <p id="kpi-bed-turnover" class="text-lg font-black text-primary">—</p>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="clock" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Tiempo de espera por triage
+                </h3>
+                <p id="bi-triage-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Minutos promedio de triage a primera atención</p>
+                <div class="relative h-56"><canvas id="chart-espera-triage"></canvas></div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="stethoscope" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Especialidades más solicitadas
+                </h3>
+                <p id="bi-specialties-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Ingresos por especialidad principal</p>
+                <div class="relative h-56"><canvas id="chart-especialidades"></canvas></div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="repeat" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-600"></i>
+                  Rotación de medicamentos e insumos
+                </h3>
+                <p id="bi-rotation-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Unidades dispensadas en los últimos 30 días</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-rose-600 uppercase tracking-wider mb-1.5">Mayor rotación</p>
+                    <div id="bi-rotation-high" class="divide-y divide-slate-100"></div>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Menor rotación</p>
+                    <div id="bi-rotation-low" class="divide-y divide-slate-100"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="calendar-range" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Ocupación promedio mensual por servicio
+                </h3>
+                <p id="bi-monthly-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Promedio del % diario de camas ocupadas</p>
+                <div id="bi-monthly-occupancy" class="overflow-x-auto"></div>
+              </div>
             </div>
           </div>
 
@@ -1227,29 +1362,30 @@
   <!-- JAVASCRIPT MODULAR Y REACTIVO                                             -->
   <!-- ========================================================================= -->
   <!-- Módulos: configuración, datos simulados, privacidad, cliente HTTP con fallback y servicios de dominio -->
-  <script src="js/config.js?v=20260924f"></script>
-  <script src="js/mockData.js?v=20260924f"></script>
-  <script src="js/services/privacy.js?v=20260924f"></script>
-  <script src="js/services/apiClient.js?v=20260924f"></script>
-  <script src="js/services/authService.js?v=20260924f"></script>
-  <script src="js/services/patientService.js?v=20260924f"></script>
-  <script src="js/services/doctorService.js?v=20260924f"></script>
-  <script src="js/services/appointmentService.js?v=20260924f"></script>
-  <script src="js/services/roomService.js?v=20260924f"></script>
-  <script src="js/services/pharmacyService.js?v=20260924f"></script>
-  <script src="js/services/dashboardService.js?v=20260924f"></script>
-  <script src="js/services/dataService.js?v=20260924f"></script>
-  <script src="js/services/aiService.js?v=20260924f"></script>
+  <script src="js/config.js?v=20260924i"></script>
+  <script src="js/mockData.js?v=20260924i"></script>
+  <script src="js/services/privacy.js?v=20260924i"></script>
+  <script src="js/services/apiClient.js?v=20260924i"></script>
+  <script src="js/services/authService.js?v=20260924i"></script>
+  <script src="js/services/patientService.js?v=20260924i"></script>
+  <script src="js/services/doctorService.js?v=20260924i"></script>
+  <script src="js/services/appointmentService.js?v=20260924i"></script>
+  <script src="js/services/roomService.js?v=20260924i"></script>
+  <script src="js/services/pharmacyService.js?v=20260924i"></script>
+  <script src="js/services/dashboardService.js?v=20260924i"></script>
+  <script src="js/services/dataService.js?v=20260924i"></script>
+  <script src="js/services/aiService.js?v=20260924i"></script>
+  <script src="js/services/insightsService.js?v=20260924i"></script>
 
   <!-- Capa de Vista: controladores de cada módulo (js/views), componentes y arranque -->
-  <script src="js/views/viewHelpers.js?v=20260924f"></script>
-  <script src="js/views/navigationView.js?v=20260924f"></script>
-  <script src="js/views/dashboardView.js?v=20260924f"></script>
-  <script src="js/views/assistantView.js?v=20260924f"></script>
-  <script src="js/views/admissionWizardView.js?v=20260924f"></script>
-  <script src="js/views/dataSyncView.js?v=20260924f"></script>
-  <script src="js/components/uiComponents.js?v=20260924f"></script>
-  <script src="js/views/authView.js?v=20260924f"></script>
-  <script src="js/app.js?v=20260924f"></script>
+  <script src="js/views/viewHelpers.js?v=20260924i"></script>
+  <script src="js/views/navigationView.js?v=20260924i"></script>
+  <script src="js/views/dashboardView.js?v=20260924i"></script>
+  <script src="js/views/assistantView.js?v=20260924i"></script>
+  <script src="js/views/admissionWizardView.js?v=20260924i"></script>
+  <script src="js/views/dataSyncView.js?v=20260924i"></script>
+  <script src="js/components/uiComponents.js?v=20260924i"></script>
+  <script src="js/views/authView.js?v=20260924i"></script>
+  <script src="js/app.js?v=20260924i"></script>
 </body>
 </html>

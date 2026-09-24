@@ -27,6 +27,8 @@ PERIOD_LABELS = {"today": "Hoy", "7d": "Últimos 7 días", "30d": "Último mes"}
 ALL_SERVICES = "all"
 URGENT_PATIENTS_LIMIT = 12
 CRITICAL_MEDS_LIMIT = 8
+TOP_SPECIALTIES_LIMIT = 8
+ROTATION_LIMIT = 8
 
 
 def _date_window(reference: str, days: int) -> tuple[str, str]:
@@ -84,6 +86,13 @@ def _kpis(conn: sqlite3.Connection, start: str, end: str, service: str) -> dict:
         f"FROM VistaIngresos WHERE 1 = 1{service_filter}", [start, end, *service_params],
     ).fetchone()
 
+    # Estancia promedio y giro cama de los ingresos hospitalarios del periodo
+    stay = conn.execute(
+        "SELECT ROUND(AVG(DiasEstancia), 1) AS avg_stay, COUNT(*) AS hospital_admissions FROM VistaIngresos "
+        "WHERE ClaseIngreso = 'Hospitalario' AND DiasEstancia IS NOT NULL "
+        f"AND DATE(FechaIngreso) BETWEEN ? AND ?{service_filter}", [start, end, *service_params],
+    ).fetchone()
+
     return {
         "totalBeds": total,
         "occupiedBeds": occupied,
@@ -100,6 +109,9 @@ def _kpis(conn: sqlite3.Connection, start: str, end: str, service: str) -> dict:
         "activePatients": patients["active"] or 0,
         "criticalPatients": patients["critical"] or 0,
         "admissions": patients["admissions"] or 0,
+        "avgLengthOfStayDays": stay["avg_stay"],
+        # Giro cama = ingresos hospitalarios del periodo / camas del servicio (veces que "rota" cada cama)
+        "bedTurnover": round((stay["hospital_admissions"] or 0) / total, 2) if total else None,
     }
 
 
@@ -142,6 +154,76 @@ def _service_distribution(conn: sqlite3.Connection, start: str, end: str) -> dic
         [start, end],
     ).fetchall()
     return {"labels": [r["Servicio"] for r in rows], "values": [r["admissions"] for r in rows]}
+
+
+def _wait_by_triage(conn: sqlite3.Connection, start: str, end: str, service: str) -> list[dict]:
+    """Espera promedio (triage -> primera atención) por nivel de triage en el periodo."""
+    service_filter, params = _service_clause(service, "Servicio")
+    rows = conn.execute(
+        "SELECT NivelTriage AS level, COUNT(*) AS patients, ROUND(AVG(MinutosEspera), 1) AS avg_minutes "
+        "FROM EsperaUrgencias WHERE NivelTriage IS NOT NULL AND MinutosEspera IS NOT NULL "
+        f"AND Fecha BETWEEN ? AND ?{service_filter} GROUP BY NivelTriage ORDER BY NivelTriage",
+        [start, end, *params],
+    ).fetchall()
+    return [{"level": r["level"], "patients": r["patients"], "avgMinutes": r["avg_minutes"]} for r in rows]
+
+
+def _top_specialties(conn: sqlite3.Connection, start: str, end: str, service: str) -> list[dict]:
+    """Especialidades más solicitadas: ingresos del periodo por especialidad principal."""
+    service_filter, params = _service_clause(service, "Servicio")
+    rows = conn.execute(
+        "SELECT EspecialidadPrincipal AS specialty, COUNT(*) AS admissions FROM VistaIngresos "
+        "WHERE EspecialidadPrincipal IS NOT NULL AND TRIM(EspecialidadPrincipal) <> '' "
+        f"AND DATE(FechaIngreso) BETWEEN ? AND ?{service_filter} "
+        "GROUP BY EspecialidadPrincipal ORDER BY admissions DESC LIMIT ?",
+        [start, end, *params, TOP_SPECIALTIES_LIMIT],
+    ).fetchall()
+    return [{"specialty": r["specialty"], "admissions": r["admissions"]} for r in rows]
+
+
+def _medication_rotation(conn: sqlite3.Connection, limit: int = ROTATION_LIMIT) -> dict:
+    """
+    Medicamentos e insumos de mayor y menor rotación (unidades dispensadas en los últimos 30 días).
+    rotationIndex = consumo de 30 días / stock actual (veces que se renueva el inventario en un mes).
+    """
+    columns = (
+        "SELECT CodigoMedicamento AS code, NombreMedicamento AS name, Categoria AS category, "
+        "ConsumoUltimos30Dias AS units_30d, StockActual AS stock, "
+        "ROUND(ConsumoUltimos30Dias / NULLIF(StockActual, 0), 2) AS rotation_index FROM InventarioFarmacia "
+    )
+    def items(rows):
+        return [{"code": r["code"], "name": r["name"], "category": r["category"], "units30d": r["units_30d"],
+                 "stock": r["stock"], "rotationIndex": r["rotation_index"]} for r in rows]
+    high = conn.execute(columns + "WHERE ConsumoUltimos30Dias > 0 ORDER BY ConsumoUltimos30Dias DESC LIMIT ?",
+                        [limit]).fetchall()
+    low = conn.execute(columns + "WHERE ConsumoUltimos30Dias > 0 ORDER BY ConsumoUltimos30Dias ASC LIMIT ?",
+                       [limit]).fetchall()
+    counts = conn.execute(
+        "SELECT SUM(ConsumoUltimos30Dias = 0 OR ConsumoUltimos30Dias IS NULL) AS idle, COUNT(*) AS total "
+        "FROM InventarioFarmacia"
+    ).fetchone()
+    return {"highest": items(high), "lowest": items(low),
+            "withoutMovement30d": counts["idle"] or 0, "totalItems": counts["total"] or 0}
+
+
+def _monthly_occupancy(conn: sqlite3.Connection, service: str) -> dict:
+    """Ocupación promedio mensual (%) por servicio, a partir del histórico diario."""
+    service_filter, params = _service_clause(service, "Servicio")
+    rows = conn.execute(
+        "SELECT Servicio AS service, strftime('%Y-%m', Fecha) AS month, "
+        "ROUND(AVG(PorcentajeOcupacion), 1) AS avg_pct, ROUND(AVG(CamasOcupadas), 1) AS avg_occupied "
+        f"FROM OcupacionDiaria WHERE 1 = 1{service_filter} GROUP BY Servicio, month ORDER BY Servicio, month",
+        params,
+    ).fetchall()
+    months = sorted({r["month"] for r in rows})
+    by_service: dict[str, dict[str, float]] = {}
+    for r in rows:
+        by_service.setdefault(r["service"], {})[r["month"]] = r["avg_pct"]
+    services = sorted(by_service, key=lambda s: by_service[s].get(months[-1], 0) if months else 0, reverse=True)
+    return {
+        "months": months,
+        "rows": [{"service": s, "values": [by_service[s].get(m) for m in months]} for s in services],
+    }
 
 
 def _wards(conn: sqlite3.Connection, service: str) -> list[dict]:
@@ -244,4 +326,8 @@ def get_dashboard(conn: sqlite3.Connection, period: str = "today", service: str 
         "wards": _wards(conn, service),
         "urgentPatients": _urgent_patients(conn, service),
         "criticalMeds": _critical_meds(conn),
+        "waitByTriage": _wait_by_triage(conn, start, end, service),
+        "topSpecialties": _top_specialties(conn, start, end, service),
+        "medicationRotation": _medication_rotation(conn),
+        "monthlyOccupancy": _monthly_occupancy(conn, service),
     }

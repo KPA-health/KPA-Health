@@ -1,6 +1,6 @@
 """
 Contrato REST: las respuestas deben tener exactamente la forma que consume
-front-kpa (apiClient.js / services / mockData.js).
+frontend (apiClient.js / services / mockData.js).
 """
 import io
 

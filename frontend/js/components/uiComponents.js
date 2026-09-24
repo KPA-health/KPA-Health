@@ -11,6 +11,70 @@ MediPulse.UI = {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   },
 
+  /**
+   * Tarjeta de una alerta de /api/insights/briefing (la usan el chat y el dashboard).
+   * @param {object} item {type, severity, title, message, action, items}
+   * @param {{detail?: boolean}} options detail = agrega la tabla de detalle (medicamentos, camas, turnos o días).
+   */
+  alertCard(item, { detail = false } = {}) {
+    const e = v => this.escape(v);
+    const styles = {
+      alta: ['bg-rose-50 border-rose-200', 'bg-rose-600 text-white', 'Prioridad alta'],
+      media: ['bg-amber-50 border-amber-200', 'bg-amber-500 text-white', 'Prioridad media'],
+      baja: ['bg-emerald-50 border-emerald-200', 'bg-emerald-600 text-white', 'Informativa']
+    };
+    const icons = { demanda: 'trending-up', espera: 'clock', desabastecimiento: 'pill', ocupacion: 'bed', personal: 'users', cirugia: 'scissors' };
+    const [box, badge, label] = styles[item.severity] || styles.baja;
+
+    // Detalle por tipo de alerta: [encabezados, filas]
+    const pct = v => (v === null || v === undefined ? '—' : `${v > 0 ? '+' : ''}${fmtNumber(v, 0)}%`);
+    const tables = {
+      demanda: [['Medicamento asociado', 'Cobertura', 'Pedir'],
+        m => [m.name, `${fmtNumber(m.coverageDays, 0)} días`, m.orderQuantity ? `${fmtNumber(m.orderQuantity)} und` : 'Suficiente']],
+      desabastecimiento: [['Mayor consumo', 'Cobertura', 'Pedir'],
+        m => [m.name, `${fmtNumber(m.daysOfInventory, 1)} días`, `${fmtNumber(m.orderQuantity)} und`]],
+      ocupacion: [['Servicio', 'Ocupación 7 días', 'Abrir'],
+        s => [s.service, `${fmtNumber(s.avgOccupancyPct, 1)}%`, `+${fmtNumber(s.bedsToOpen)} camas`]],
+      personal: [['Turno', 'Espera', 'Pacientes/día'],
+        s => [`${s.shift} (${s.hours})`, `${fmtNumber(s.currentAvgWait, 0)} min`, fmtNumber(s.currentPerDay, 1)]],
+      cirugia: [['Día', 'Cirugías/día', 'Vs. promedio hábil'],
+        d => [d.day, fmtNumber(d.perDay, 1), pct(d.vsAveragePct)]]
+    };
+    const spec = detail ? tables[item.type] : null;
+    const headers = spec ? spec[0] : [];
+    const rows = spec ? (item.items || []).map(spec[1]) : [];
+    const table = rows.length ? `
+      <table class="w-full text-left text-[11px] bg-white/70 rounded-lg overflow-hidden">
+        <thead class="text-[9px] uppercase text-slate-500">
+          <tr><th class="px-2 py-1">${e(headers[0])}</th><th class="px-2 py-1 text-right">${e(headers[1])}</th><th class="px-2 py-1 text-right">${e(headers[2])}</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          ${rows.map(([name, middle, last]) => `
+          <tr>
+            <td class="px-2 py-1 text-slate-700 max-w-[220px] truncate" title="${e(name)}">${e(name)}</td>
+            <td class="px-2 py-1 text-right whitespace-nowrap">${e(middle)}</td>
+            <td class="px-2 py-1 text-right font-bold text-primary whitespace-nowrap">${e(last)}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>` : '';
+
+    return `
+      <div class="rounded-xl border ${box} p-3 space-y-1.5 text-xs">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <p class="font-bold text-slate-800 flex items-center gap-1.5">
+            <i data-lucide="${icons[item.type] || 'alert-triangle'}" class="w-3.5 h-3.5"></i>${e(item.title)}
+          </p>
+          <span class="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${badge}">${label}</span>
+        </div>
+        <p class="text-slate-700 leading-relaxed">${e(item.message)}</p>
+        ${item.action ? `
+        <p class="text-primary font-semibold flex items-start gap-1.5">
+          <i data-lucide="lightbulb" class="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500"></i><span>${e(item.action)}</span>
+        </p>` : ''}
+        ${table}
+      </div>`;
+  },
+
   toast(msg, type = 'success') {
     const container = document.getElementById('toast-container');
     const el = document.createElement('div');

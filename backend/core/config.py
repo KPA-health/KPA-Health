@@ -130,7 +130,7 @@ class Settings:
     privacy_salt: str                # secreto para el hash (HMAC) de documentos de identidad
     cors_origins: list[str] = field(default_factory=list)
     serve_frontend: bool = True
-    frontend_dir: Path = PROJECT_ROOT / "front-kpa"   # capa de Vista (SPA) servida en "/"
+    frontend_dir: Path = PROJECT_ROOT / "frontend"   # capa de Vista (SPA) servida en "/"
     max_upload_mb: int = 250
     ai: AISettings | None = None
     voice: VoiceSettings | None = None
@@ -211,7 +211,7 @@ def get_settings() -> Settings:
         privacy_salt=_env("PRIVACY_SALT", "kpa-health-hslv-demo-salt-cambiar-en-produccion"),
         cors_origins=origins or ["*"],
         serve_frontend=_env_bool("SERVE_FRONTEND", True),
-        frontend_dir=_resolve_path(_env("FRONTEND_DIR", "front-kpa")),
+        frontend_dir=_resolve_path(_env("FRONTEND_DIR", "frontend")),
         max_upload_mb=_env_int("MAX_UPLOAD_MB", 250),
         ai=ai,
         voice=voice,
