@@ -1,0 +1,2642 @@
+
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Hospital Susana López de Valencia - MediPulse OS</title>
+
+  <!-- Tipografías Clínicas: Plus Jakarta Sans & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- TailwindCSS vía CDN con Paleta Corporativa Estricta -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              DEFAULT: '#1f4a2a', // Verde bosque oscuro (Navegación y textos fuertes)
+              dark: '#16361e',
+              light: '#2d673c',
+              hover: '#265933'
+            },
+            secondary: {
+              DEFAULT: '#3b8070', // Verde esmeralda / teal (Botones principales y acentos)
+              dark: '#2e6357',
+              light: '#4d9f8d',
+              hover: '#337062'
+            },
+            tertiary: {
+              DEFAULT: '#9ed3a2', // Verde menta claro (Tarjetas y acentos suaves)
+              light: '#eaf6ed',
+              ultralight: '#f4fbf5',
+              dark: '#7fb884'
+            },
+            clinical: {
+              bg: '#fcfdfd',
+              card: '#ffffff',
+              border: '#e2e8f0',
+              text: '#0f172a'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+            dyslexic: ['"Comic Sans MS"', '"OpenDyslexic"', 'sans-serif']
+          },
+          boxShadow: {
+            'soft': '0 2px 10px -2px rgba(31, 74, 42, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02)',
+            'card': '0 4px 20px -2px rgba(31, 74, 42, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04)',
+            'dropdown': '0 10px 30px -4px rgba(31, 74, 42, 0.12), 0 6px 12px -3px rgba(0, 0, 0, 0.08)'
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Chart.js CDN para gráficas BI -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Estilos Personalizados, Mobile-First y Accesibilidad -->
+  <style>
+    /* Soporte Touch y Mobile-First */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Estilos del Widget de Accesibilidad */
+    .font-size-sm { font-size: 87.5% !important; }
+    .font-size-md { font-size: 100% !important; }
+    .font-size-lg { font-size: 112.5% !important; }
+    .font-size-xl { font-size: 125% !important; }
+
+    .high-contrast-mode {
+      filter: contrast(125%);
+    }
+    .high-contrast-mode body {
+      background-color: #ffffff !important;
+      color: #000000 !important;
+    }
+    .high-contrast-mode .bg-white {
+      background-color: #ffffff !important;
+      border-color: #000000 !important;
+    }
+
+    .dyslexia-font {
+      font-family: 'Comic Sans MS', sans-serif !important;
+      letter-spacing: 0.035em !important;
+      word-spacing: 0.08em !important;
+      line-height: 1.7 !important;
+    }
+
+    /* Ocultar barra de scroll en contenedores swipeables */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Scrollbars elegantes en escritorio */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    /* Animación de pulso para la API */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.2); }
+    }
+    .api-pulse { animation: pulseGlow 2s infinite ease-in-out; }
+
+    /* Asistente: el detalle técnico (SQL, tiempos, intentos) solo se ve con el switch activo */
+    #ai-chat-messages:not(.show-technical) .ai-tech { display: none !important; }
+
+    /* Botón de micrófono grabando */
+    @keyframes voicePulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.45); }
+      50% { box-shadow: 0 0 0 8px rgba(225, 29, 72, 0); }
+    }
+    .voice-recording { animation: voicePulse 1.4s infinite; }
+
+    /* Chat Markdown Code Block */
+    .sql-code-block {
+      background-color: #162a1c;
+      color: #9ed3a2;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+  </style>
+</head>
+<body class="h-full flex overflow-hidden font-sans text-slate-800 antialiased selection:bg-tertiary selection:text-primary-dark">
+
+  <!-- ========================================================================= -->
+  <!-- OVERLAY OSCURO PARA MENÚ MÓVIL (OFF-CANVAS)                               -->
+  <!-- ========================================================================= -->
+  <div id="mobile-sidebar-overlay" class="hidden fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300 md:hidden"></div>
+
+  <!-- ========================================================================= -->
+  <!-- SIDEBAR LATERAL (ESCRITORIO & MÓVIL OFF-CANVAS) (#1f4a2a)                 -->
+  <!-- ========================================================================= -->
+  <aside id="app-sidebar" class="fixed md:static inset-y-0 left-0 -translate-x-full md:translate-x-0 bg-primary text-white flex flex-col transition-transform md:transition-all duration-300 ease-in-out z-50 shadow-2xl md:shadow-xl w-72 md:w-64 shrink-0 select-none">
+    
+    <!-- Logo Institucional FUP con Botón de Cierre en Móvil -->
+    <div class="h-16 flex items-center justify-between px-4 border-b border-primary-light/40 bg-primary-dark/40">
+      <div class="flex items-center space-x-3 overflow-hidden cursor-pointer" data-perm="dashboard" onclick="MediPulse.Navigation.switchView('view-bi')">
+        <!-- Logo FUP Local -->
+        <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-md overflow-hidden shrink-0 p-1">
+          <img src="logo_fup.png" alt="FUP" class="w-full h-full object-contain" onerror="this.outerHTML='<i data-lucide=\'cross\' class=\'w-6 h-6 text-primary fill-primary\'></i>'">
+        </div>
+        <div class="sidebar-text-content transition-opacity duration-200">
+          <span class="font-extrabold text-base tracking-tight leading-none block text-white">MediPulse OS</span>
+          <span class="text-[9px] text-tertiary font-medium tracking-wider uppercase block mt-0.5">S. López de Valencia</span>
+        </div>
+      </div>
+      
+      <!-- Botón Colapsar en Escritorio -->
+      <button id="btn-toggle-sidebar" class="hidden md:flex p-1.5 rounded-lg text-tertiary-light hover:bg-primary-light/50 transition-colors" title="Colapsar Menú">
+        <i data-lucide="chevron-left" id="sidebar-toggle-icon" class="w-5 h-5 transition-transform duration-300"></i>
+      </button>
+
+      <!-- Botón Cerrar en Móvil -->
+      <button id="btn-close-mobile-sidebar" class="flex md:hidden p-1.5 rounded-lg text-white/80 hover:bg-primary-light/50">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Navegación Principal SPA -->
+    <nav class="flex-1 overflow-y-auto py-5 px-3 space-y-2" id="sidebar-nav">
+      
+      <div class="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-tertiary/80 sidebar-text-content">
+        Módulos Principales
+      </div>
+
+      <!-- VISTA 1: Dashboard de BI -->
+      <button data-perm="dashboard" onclick="MediPulse.Navigation.switchView('view-bi')" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-150 bg-primary-light text-white shadow-inner" data-target="view-bi">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 shrink-0 text-tertiary"></i>
+        <div class="text-left sidebar-text-content">
+          <span class="block leading-tight">Dashboard de BI</span>
+          <span class="text-[10px] text-tertiary/90 font-normal">Métricas y Ocupación</span>
+        </div>
+      </button>
+
+      <!-- VISTA 2: Asistente IA Médico (NLSQL) -->
+      <button data-perm="assistant" onclick="MediPulse.Navigation.switchView('view-ai')" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-150 text-white/90 hover:bg-primary-light/60 hover:text-white" data-target="view-ai">
+        <div class="relative shrink-0">
+          <i data-lucide="sparkles" class="w-5 h-5 text-tertiary"></i>
+          <span class="absolute -top-1 -right-1 flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-tertiary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary-light"></span>
+          </span>
+        </div>
+        <div class="text-left sidebar-text-content">
+          <span class="block leading-tight">Asistente IA (NLSQL)</span>
+          <span class="text-[10px] text-tertiary/90 font-normal">Consultas Clínicas en LN</span>
+        </div>
+      </button>
+
+      <!-- VISTA 3: Gestión de Ingresos (Wizard Relacional) -->
+      <button data-perm="admissions" onclick="MediPulse.Navigation.switchView('view-wizard')" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-150 text-white/90 hover:bg-primary-light/60 hover:text-white" data-target="view-wizard">
+        <i data-lucide="user-plus" class="w-5 h-5 shrink-0 text-tertiary"></i>
+        <div class="text-left sidebar-text-content">
+          <span class="block leading-tight">Gestión de Ingresos</span>
+          <span class="text-[10px] text-tertiary/90 font-normal">Wizard Secuencial en 3 Pasos</span>
+        </div>
+      </button>
+
+      <!-- VISTA 4: Gestión de Datos (ETL) -->
+      <button data-perm="data" onclick="MediPulse.Navigation.switchView('view-data')" class="nav-tab-btn w-full flex items-center space-x-3 px-3.5 py-3 rounded-xl font-semibold text-xs md:text-sm transition-all duration-150 text-white/90 hover:bg-primary-light/60 hover:text-white" data-target="view-data">
+        <i data-lucide="database" class="w-5 h-5 shrink-0 text-tertiary"></i>
+        <div class="text-left sidebar-text-content">
+          <span class="block leading-tight">Gestión de Datos</span>
+          <span class="text-[10px] text-tertiary/90 font-normal">Sincronización de Archivos (.txt)</span>
+        </div>
+      </button>
+
+      <div class="pt-6 px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-tertiary/80 sidebar-text-content">
+        Infraestructura
+      </div>
+
+      <button data-perm="settings" onclick="MediPulse.Navigation.openApiSettingsModal()" class="w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl font-medium text-xs text-white/80 hover:bg-primary-light/50 hover:text-white transition-colors">
+        <i data-lucide="server" class="w-4 h-4 shrink-0 text-tertiary"></i>
+        <span class="sidebar-text-content">Configuración API REST</span>
+      </button>
+    </nav>
+
+    <!-- Usuario de Guardia -->
+    <div class="p-3 border-t border-primary-light/30 bg-primary-dark/30">
+      <div class="flex items-center space-x-3 p-1.5 rounded-xl bg-primary-light/20">
+        <div id="session-user-initials" class="w-9 h-9 rounded-full bg-secondary text-white flex items-center justify-center font-bold text-xs shrink-0 ring-2 ring-tertiary/40">
+          —
+        </div>
+        <div class="min-w-0 flex-1 sidebar-text-content">
+          <p id="session-user-name" class="text-xs font-semibold text-white truncate">—</p>
+          <p id="session-user-role" class="text-[10px] text-tertiary truncate">Sin sesión</p>
+        </div>
+        <button id="btn-logout" onclick="MediPulse.Auth.logout()" title="Cerrar sesión" aria-label="Cerrar sesión" class="sidebar-text-content p-1.5 rounded-lg text-tertiary hover:bg-primary-light/60 hover:text-white transition-colors">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ========================================================================= -->
+  <!-- CONTENEDOR PRINCIPAL: HEADER Y SECCIONES SPA CONMUTABLES                   -->
+  <!-- ========================================================================= -->
+  <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-clinical-bg relative">
+    
+    <!-- HEADER SUPERIOR BLANCO CON SOMBRAS SUAVES -->
+    <header class="h-16 bg-white border-b border-slate-200/80 px-3 md:px-6 flex items-center justify-between shadow-soft z-20 shrink-0">
+      
+      <!-- Menú Hamburguesa + Título Institucional con Logo -->
+      <div class="flex items-center space-x-2.5 md:space-x-4 min-w-0">
+        <button id="btn-open-mobile-sidebar" class="md:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-none" aria-label="Abrir Menú">
+          <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+
+        <div class="flex items-center space-x-2.5 min-w-0">
+          <!-- Logo Hospital Susana López Local -->
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+            <img src="logo_susana_lopez.png" alt="Logo Hospital" class="w-full h-full object-contain" onerror="this.outerHTML='<div class=\'w-8 h-8 rounded-lg bg-primary-dark flex items-center justify-center text-white shadow-sm\'><i data-lucide=\'activity\' class=\'w-5 h-5 text-tertiary\'></i></div>'">
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center space-x-1.5">
+              <h1 class="text-xs sm:text-sm md:text-base font-bold text-primary leading-tight truncate">
+                Hospital Susana López de Valencia E.S.E.
+              </h1>
+              <span class="hidden xl:inline-block px-1.5 py-0.5 text-[9px] font-bold rounded bg-tertiary-light text-primary border border-tertiary/40 shrink-0">
+                Central
+              </span>
+            </div>
+            <p class="text-[10px] text-slate-500 font-medium truncate hidden xs:block">Business Intelligence & Triaje</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Indicador API + Widget de Accesibilidad + Botón Rápido -->
+      <div class="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
+        
+        <!-- INDICADOR VISUAL DE API CONECTADA (PUNTO VERDE PARPADEANTE) -->
+        <div id="api-status-pill" onclick="MediPulse.Navigation.openApiSettingsModal()" class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium cursor-pointer hover:bg-slate-100 transition-colors" title="Configurar API REST / Mock">
+          <span class="relative flex h-2 w-2">
+            <span id="api-status-ping" class="api-pulse absolute inline-flex h-full w-full rounded-full bg-slate-300 opacity-75"></span>
+            <span id="api-status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+          </span>
+          <span id="api-status-text" class="hidden sm:inline text-[11px] font-semibold">Conectando…</span>
+        </div>
+
+        <!-- WIDGET DE ACCESIBILIDAD INTERACTIVO -->
+        <div class="relative" id="accessibility-dropdown-container">
+          <button id="btn-accessibility" class="flex items-center space-x-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-sm transition-all focus:ring-2 focus:ring-secondary/30 focus:outline-none" title="Accesibilidad">
+            <i data-lucide="eye" class="w-4 h-4 text-secondary"></i>
+            <span class="hidden md:inline">Accesibilidad</span>
+          </button>
+
+          <!-- Menú Flotante Accesibilidad -->
+          <div id="accessibility-menu" class="hidden absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-72 max-w-xs bg-white rounded-2xl shadow-dropdown border border-slate-200/90 p-4 z-50 text-slate-800">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <span class="font-bold text-xs text-primary uppercase tracking-wider flex items-center gap-1.5">
+                <i data-lucide="universal-access" class="w-4 h-4 text-secondary"></i>
+                Accesibilidad WCAG
+              </span>
+              <button id="btn-reset-accessibility" class="text-[10px] text-slate-500 hover:text-secondary underline">Restablecer</button>
+            </div>
+
+            <!-- Tamaño Fuente -->
+            <div class="py-3 border-b border-slate-100">
+              <label class="text-xs font-semibold text-slate-700 block mb-2">Escala de Texto:</label>
+              <div class="grid grid-cols-4 gap-1.5">
+                <button class="btn-font-size py-1 text-xs border rounded-lg hover:border-secondary font-medium" data-size="sm">A-</button>
+                <button class="btn-font-size py-1 text-xs border rounded-lg bg-secondary text-white font-medium" data-size="md">100%</button>
+                <button class="btn-font-size py-1 text-xs border rounded-lg hover:border-secondary font-medium" data-size="lg">A+</button>
+                <button class="btn-font-size py-1 text-xs border rounded-lg hover:border-secondary font-medium" data-size="xl">A++</button>
+              </div>
+            </div>
+
+            <!-- Alto Contraste -->
+            <div class="py-2.5 flex items-center justify-between border-b border-slate-100">
+              <div>
+                <span class="text-xs font-semibold text-slate-700 block">Modo Alto Contraste</span>
+                <span class="text-[10px] text-slate-500">Resalta bordes y textos</span>
+              </div>
+              <button id="btn-toggle-contrast" class="w-11 h-6 bg-slate-200 rounded-full relative transition-colors duration-200 focus:outline-none">
+                <span id="contrast-slider-knob" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 shadow transition-transform duration-200"></span>
+              </button>
+            </div>
+
+            <!-- Tipografía de Alta Lectura -->
+            <div class="pt-2.5 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-semibold text-slate-700 block">Fuente Alta Lectura</span>
+                <span class="text-[10px] text-slate-500">Espaciado para dislexia</span>
+              </div>
+              <button id="btn-toggle-dyslexia" class="w-11 h-6 bg-slate-200 rounded-full relative transition-colors duration-200 focus:outline-none">
+                <span id="dyslexia-slider-knob" class="w-5 h-5 bg-white rounded-full absolute top-0.5 left-0.5 shadow transition-transform duration-200"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botón Directo al Wizard en Pantallas Grandes -->
+        <button data-perm="admissions" onclick="MediPulse.Navigation.switchView('view-wizard')" class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-secondary hover:bg-secondary-dark text-white text-xs font-bold shadow-sm transition-all focus:ring-2 focus:ring-secondary/40">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Nuevo Ingreso</span>
+        </button>
+
+      </div>
+    </header>
+
+    <!-- ======================================================================= -->
+    <!-- ÁREA DE VISTAS CONMUTABLES (JS TOGGLE SIN RECARGAR PÁGINA)              -->
+    <!-- ======================================================================= -->
+    <main class="flex-1 overflow-y-auto p-3.5 sm:p-5 md:p-6 lg:p-8 pb-20 md:pb-8">
+      <div class="max-w-7xl mx-auto">
+
+        <!-- ===================================================================== -->
+        <!-- VISTA 1: DASHBOARD DE BUSINESS INTELLIGENCE (BI)                      -->
+        <!-- ===================================================================== -->
+        <section id="view-bi" class="spa-view space-y-5 md:space-y-6">
+          
+          <!-- FILA 1: Banner Ejecutivo & BARRA DE FILTROS (mejora integrada desde index.txt) -->
+          <div class="bg-gradient-to-r from-primary via-primary-hover to-secondary p-4 sm:p-5 rounded-2xl md:rounded-3xl text-white shadow-card flex flex-col space-y-4">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span class="inline-block px-2.5 py-0.5 rounded-full bg-white/20 text-tertiary text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-1.5">
+                  Business Intelligence Hospitalario
+                </span>
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight">Monitor Ejecutivo Institucional</h2>
+                <p class="text-white/80 text-xs sm:text-sm mt-1 flex flex-wrap items-center gap-2">
+                  <span id="bi-reference-date">Cargando datos del hospital…</span>
+                  <span id="bi-source-badge" class="px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-bold uppercase tracking-wider">Conectando</span>
+                </p>
+              </div>
+              <button data-perm="assistant" onclick="MediPulse.Navigation.switchView('view-ai')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-tertiary text-primary-dark hover:bg-white text-xs font-extrabold shadow transition-all flex items-center justify-center gap-2">
+                <i data-lucide="sparkles" class="w-4 h-4"></i> Consultar con IA (NLSQL)
+              </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3 bg-white/10 p-2.5 rounded-xl border border-white/20 backdrop-blur-sm">
+              <span class="text-xs font-bold px-2"><i data-lucide="filter" class="w-4 h-4 inline mr-1"></i> Filtros:</span>
+              <select id="bi-filter-period" aria-label="Periodo del dashboard" class="bg-white text-primary-dark text-xs font-bold px-3 py-1.5 rounded-lg border-0 focus:ring-2 focus:ring-tertiary">
+                <option value="today">Hoy</option>
+                <option value="7d">Últimos 7 días</option>
+                <option value="30d">Último Mes</option>
+              </select>
+              <select id="bi-filter-service" aria-label="Servicio hospitalario" class="bg-white text-primary-dark text-xs font-bold px-3 py-1.5 rounded-lg border-0 focus:ring-2 focus:ring-tertiary">
+                <option value="all">Todos los Servicios</option>
+                <option value="Cuidados Intensivos (UCI)">Cuidados Intensivos (UCI)</option>
+                <option value="Urgencias">Urgencias</option>
+                <option value="Recuperación">Cirugía (Recuperación)</option>
+              </select>
+              <button onclick="MediPulse.BI.applyFilters()" class="bg-primary text-tertiary hover:bg-primary-dark text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                Aplicar
+              </button>
+              <button onclick="MediPulse.BI.render()" title="Actualizar ahora" aria-label="Actualizar dashboard" class="ml-auto bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i><span class="hidden sm:inline">Actualizar</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- FILA 2: CUADRÍCULA DE 4 KPIs (datos reales de hospital.db) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex items-center justify-between relative overflow-hidden group">
+              <div class="z-10">
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Ocupación Hospitalaria</p>
+                <div class="flex items-baseline space-x-2 mt-1">
+                  <h3 id="kpi-occupancy-rate" class="text-2xl sm:text-3xl font-black text-primary">—</h3>
+                </div>
+                <p id="kpi-beds-ratio" class="text-xs text-slate-600 font-medium mt-1">Camas ocupadas</p>
+              </div>
+              <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-tertiary-light text-primary flex items-center justify-center font-bold shadow-sm z-10 shrink-0">
+                <i data-lucide="bed" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex items-center justify-between relative overflow-hidden group">
+              <div class="z-10">
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Espera en Triaje</p>
+                <div class="flex items-baseline space-x-2 mt-1">
+                  <h3 id="kpi-wait-time" class="text-2xl sm:text-3xl font-black text-secondary">—</h3>
+                </div>
+                <p id="kpi-wait-subtitle" class="text-xs text-slate-600 font-medium mt-1">Promedio de ingreso</p>
+              </div>
+              <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-secondary/10 text-secondary flex items-center justify-center font-bold shadow-sm z-10 shrink-0">
+                <i data-lucide="clock" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex items-center justify-between relative overflow-hidden group">
+              <div class="z-10">
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Uso Quirófanos</p>
+                <div class="flex items-baseline space-x-2 mt-1">
+                  <h3 id="kpi-surgery" class="text-2xl sm:text-3xl font-black text-blue-600">—</h3>
+                </div>
+                <p id="kpi-surgery-subtitle" class="text-xs text-slate-600 font-medium mt-1">Realizadas vs Programadas</p>
+              </div>
+              <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-sm z-10 shrink-0">
+                <i data-lucide="scissors" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex items-center justify-between relative overflow-hidden group">
+              <div class="z-10">
+                <p class="text-[11px] sm:text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Crítico</p>
+                <div class="flex items-baseline space-x-2 mt-1">
+                  <h3 id="kpi-critical-count" class="text-2xl sm:text-3xl font-black text-rose-600">—</h3>
+                </div>
+                <p id="kpi-critical-subtitle" class="text-xs text-slate-600 font-medium mt-1">Medicamentos bajo el mínimo de seguridad</p>
+              </div>
+              <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold shadow-sm z-10 shrink-0">
+                <i data-lucide="pill" class="w-5 h-5 sm:w-6 sm:h-6"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- FILA 3: GRÁFICOS SUPERIORES (Tendencia y Pastel) -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 md:gap-6">
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft lg:col-span-2">
+              <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                <i data-lucide="trending-up" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                Evolución de Ocupación
+              </h3>
+              <p id="bi-trend-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Ocupación estimada (%) e ingresos por día</p>
+              <div class="relative h-60 w-full">
+                <canvas id="chart-tendencia"></canvas>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft">
+              <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 sm:w-5 sm:h-5 text-teal-600"></i>
+                Distribución por Servicio
+              </h3>
+              <p id="bi-dist-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Ingresos del periodo por servicio</p>
+              <div class="relative h-60 w-full flex items-center justify-center">
+                <canvas id="chart-distribucion"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- FILA 4: BARRAS DE PABELLÓN Y LISTA DE URGENCIAS -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-6">
+
+            <!-- Capacidad por Servicio -->
+            <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-soft flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                      <i data-lucide="building-2" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                      Capacidad por Servicio Hospitalario
+                    </h3>
+                    <p id="bi-wards-subtitle" class="text-[11px] sm:text-xs text-slate-500">Distribución de camas censables y operativas</p>
+                  </div>
+                  <span id="bi-live-badge" class="text-[10px] sm:text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg">En vivo</span>
+                </div>
+                <!-- Contenedor inyectado por JS -->
+                <div class="mt-4 sm:mt-5 space-y-4 sm:space-y-5 max-h-[420px] overflow-y-auto pr-1" id="bi-wards-container"></div>
+              </div>
+              <div class="mt-5 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between text-[11px] text-slate-500 gap-1.5">
+                <span>Sincronización de censo: <strong id="bi-last-sync">—</strong></span>
+                <span id="bi-system-status" class="flex items-center gap-1 font-bold text-primary">
+                  <i data-lucide="loader" class="w-3.5 h-3.5 text-slate-400"></i> Conectando…
+                </span>
+              </div>
+            </div>
+
+            <!-- Censo activo priorizado por triaje -->
+            <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-soft flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                      <i data-lucide="heart-pulse" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-600"></i>
+                      Censo Activo de Urgencias
+                    </h3>
+                    <p class="text-[11px] sm:text-xs text-slate-500">Prioridad por triaje · pacientes anonimizados</p>
+                  </div>
+                  <button data-perm="admissions" onclick="MediPulse.Navigation.switchView('view-wizard')" class="text-xs font-bold text-secondary hover:underline">
+                    + Nuevo Ingreso
+                  </button>
+                </div>
+                <div class="mt-3 divide-y divide-slate-100 overflow-y-auto max-h-[220px]" id="bi-urgent-patients-list">
+                  <!-- Inyectado por JS -->
+                </div>
+              </div>
+              <div class="mt-4 pt-3 border-t border-slate-100">
+                <button data-perm="admissions" onclick="MediPulse.Navigation.switchView('view-wizard')" class="w-full py-2.5 rounded-xl bg-secondary/10 hover:bg-secondary/20 text-secondary text-xs font-bold transition-colors flex items-center justify-center gap-2">
+                  <i data-lucide="user-plus" class="w-4 h-4"></i>
+                  Ingresar Paciente al Circuito
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- FILA 5: GRÁFICO DE MEDICAMENTOS -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-soft">
+            <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-600"></i>
+              Consumo de Medicamentos (Stock Crítico)
+            </h3>
+            <p id="bi-meds-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Stock actual frente al mínimo de seguridad</p>
+            <div class="relative h-64 w-full">
+              <canvas id="chart-medicamentos"></canvas>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VISTA 2: ASISTENTE IA MÉDICO (NLSQL - NATURAL LANGUAGE TO SQL)        -->
+        <!-- ===================================================================== -->
+        <section id="view-ai" class="spa-view hidden space-y-4">
+          
+          <!-- Encabezado de la Vista IA -->
+          <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex items-center justify-between">
+            <div class="flex items-center space-x-3 min-w-0">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold shadow-md shrink-0">
+                <i data-lucide="bot" class="w-5 h-5 sm:w-6 sm:h-6 text-tertiary"></i>
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center space-x-2">
+                  <h2 class="text-sm sm:text-base md:text-lg font-extrabold text-primary truncate">Asistente KPA-Health</h2>
+                  <span id="ai-status-badge" class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                    Conectando…
+                  </span>
+                </div>
+                <p class="text-[11px] sm:text-xs text-slate-500 truncate">Respuestas en español con datos reales del hospital</p>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <!-- Switch de visibilidad del detalle técnico (consulta SQL) -->
+              <div class="flex items-center gap-1.5" title="Mostrar u ocultar la consulta SQL y el detalle técnico de cada respuesta">
+                <span class="hidden md:inline text-[11px] font-semibold text-slate-600">Detalle técnico</span>
+                <button type="button" id="ai-tech-toggle" role="switch" aria-checked="false" aria-label="Mostrar detalle técnico (SQL)" onclick="MediPulse.AI.toggleTechnical()" class="w-9 h-5 bg-slate-200 rounded-full relative transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-secondary/40">
+                  <span id="ai-tech-knob" class="w-4 h-4 bg-white rounded-full absolute top-0.5 left-0.5 shadow transition-transform duration-200"></span>
+                </button>
+              </div>
+
+              <!-- Switch dinámico del motor de IA: Local (Qwen 3 8B) / Nube -->
+              <div class="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5" role="group" aria-label="Motor de IA">
+                <button type="button" id="ai-mode-local" onclick="MediPulse.AI.setMode('local')" aria-pressed="true" title="Modelo local Qwen 3 8B: los datos no salen del hospital" class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all">
+                  <i data-lucide="cpu" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">Local</span>
+                </button>
+                <button type="button" id="ai-mode-cloud" onclick="MediPulse.AI.setMode('cloud')" aria-pressed="false" title="Modelo en la nube (Gemini)" class="px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all">
+                  <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                  <span class="hidden sm:inline">Nube</span>
+                </button>
+              </div>
+
+              <button onclick="MediPulse.AI.clearHistory()" class="px-2.5 sm:px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-medium flex items-center gap-1 shrink-0">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                <span class="hidden sm:inline">Limpiar Chat</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- CONTENEDOR PRINCIPAL DEL CHAT (ESTILO CHATGPT) -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-soft flex flex-col h-[580px] sm:h-[640px] overflow-hidden">
+            
+            <!-- ÁREA CENTRAL DE MENSAJES (SCROLLABLE) -->
+            <div id="ai-chat-messages" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 sm:space-y-6">
+              
+              <!-- Mensaje de bienvenida del Asistente -->
+              <div class="flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl">
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 text-tertiary"></i>
+                </div>
+                <div class="bg-slate-50 border border-slate-200/90 rounded-2xl rounded-tl-sm p-3.5 sm:p-4 text-xs text-slate-800 leading-relaxed shadow-sm">
+                  <p class="font-bold text-primary mb-1">Asistente KPA-Health</p>
+                  <p>
+                    ¡Hola! Soy tu asistente KPA-Health del <strong>Hospital Susana López de Valencia E.S.E.</strong> ¿En qué puedo ayudarte hoy?
+                  </p>
+                  <p class="mt-2">
+                    Puedo contarte cómo está la ocupación de camas, los tiempos de espera en urgencias, los pacientes por servicio y nivel de triaje, las cirugías y el inventario de medicamentos. Escríbeme en español o toca una de las <strong>consultas rápidas</strong>.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- SECCIÓN "FEW-SHOT": 4 BOTONES DE SUGERENCIAS RÁPIDAS (SWIPEABLE EN MÓVIL) -->
+            <div class="px-3.5 sm:px-6 py-2.5 sm:py-3 bg-slate-50/95 border-t border-slate-200">
+              <div class="flex items-center space-x-1.5 mb-2">
+                <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-secondary"></i>
+                <span class="text-[10px] sm:text-[11px] font-bold text-slate-600 uppercase tracking-wider">Consultas rápidas:</span>
+              </div>
+              <div class="flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                <button onclick="MediPulse.AI.useFewShotPrompt(this.innerText)" class="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-secondary hover:bg-secondary/5 text-left text-xs font-semibold text-slate-700 transition-all shrink-0 sm:shrink shadow-2xs whitespace-nowrap sm:whitespace-normal">
+                  ¿Cuántas camas de UCI están ocupadas hoy?
+                </button>
+                <button onclick="MediPulse.AI.useFewShotPrompt(this.innerText)" class="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-secondary hover:bg-secondary/5 text-left text-xs font-semibold text-slate-700 transition-all shrink-0 sm:shrink shadow-2xs whitespace-nowrap sm:whitespace-normal">
+                  Pacientes en triaje crítico (Nivel 1 y 2)
+                </button>
+                <button onclick="MediPulse.AI.useFewShotPrompt(this.innerText)" class="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-secondary hover:bg-secondary/5 text-left text-xs font-semibold text-slate-700 transition-all shrink-0 sm:shrink shadow-2xs whitespace-nowrap sm:whitespace-normal">
+                  Medicamentos con stock crítico en farmacia
+                </button>
+                <button onclick="MediPulse.AI.useFewShotPrompt(this.innerText)" class="px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-secondary hover:bg-secondary/5 text-left text-xs font-semibold text-slate-700 transition-all shrink-0 sm:shrink shadow-2xs whitespace-nowrap sm:whitespace-normal">
+                  Médicos especialistas disponibles en guardia
+                </button>
+              </div>
+            </div>
+
+            <!-- BARRA DE ENTRADA INFERIOR FIJA CON BOTÓN DE ENVIAR -->
+            <div class="p-3 sm:p-4 bg-white border-t border-slate-200">
+              <form id="ai-chat-form" onsubmit="MediPulse.AI.handleChatSubmit(event)" class="flex items-center space-x-2">
+                <div class="relative flex-1">
+                  <input type="text" id="ai-chat-input" placeholder="Pregunta sobre camas, pacientes o fármacos..." autocomplete="off" class="w-full pl-3.5 pr-10 py-2.5 sm:py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary transition-all">
+                  <span class="absolute right-3 top-3 text-[10px] text-slate-400 font-semibold hidden md:inline">Enter ↵</span>
+                </div>
+                <button type="submit" id="ai-chat-btn-submit" class="px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl bg-secondary hover:bg-secondary-dark text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center space-x-1.5 focus:ring-2 focus:ring-secondary/50 shrink-0">
+                  <span class="hidden xs:inline">Enviar</span>
+                  <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+              </form>
+            </div>
+
+          </div>
+
+        </section>
+
+        <!-- ===================================================================== -->
+        <!-- VISTA 3: GESTIÓN DE INGRESOS (WIZARD RELACIONAL EN 3 PASOS)           -->
+        <!-- ===================================================================== -->
+        <section id="view-wizard" class="spa-view hidden space-y-5 md:space-y-6">
+          
+          <!-- Encabezado del Formulario Wizard -->
+          <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base sm:text-lg md:text-xl font-extrabold text-primary">Protocolo de Admisión & Registro Hospitalario</h2>
+              <p class="text-[11px] sm:text-xs text-slate-500">Integridad referencial: <span class="font-semibold text-secondary">Paciente &rarr; Triaje &rarr; Cama</span></p>
+            </div>
+            <button onclick="MediPulse.Wizard.reset()" class="self-start sm:self-auto px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
+              Reiniciar Formulario
+            </button>
+          </div>
+
+          <!-- BARRA DE PROGRESO DEL WIZARD (RESPONSIVE) -->
+          <div class="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-soft">
+            <div class="flex items-center justify-between relative max-w-2xl mx-auto px-2">
+              <div class="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-1 bg-slate-200 z-0"></div>
+              <div id="wizard-progress-line" class="absolute left-6 top-1/2 -translate-y-1/2 h-1 bg-secondary transition-all duration-300 z-0 w-0"></div>
+
+              <!-- Paso 1 -->
+              <div class="relative z-10 flex flex-col items-center">
+                <div id="wizard-step-indicator-1" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-secondary text-white font-black text-xs sm:text-sm flex items-center justify-center ring-4 ring-tertiary-light shadow-md transition-all">
+                  1
+                </div>
+                <span class="text-[11px] sm:text-xs font-bold text-slate-800 mt-1.5">Paso 1</span>
+                <span class="text-[9px] sm:text-[10px] text-slate-500 hidden xs:inline">Demografía</span>
+              </div>
+
+              <!-- Paso 2 -->
+              <div class="relative z-10 flex flex-col items-center">
+                <div id="wizard-step-indicator-2" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-200 text-slate-600 font-black text-xs sm:text-sm flex items-center justify-center ring-4 ring-white shadow transition-all">
+                  2
+                </div>
+                <span class="text-[11px] sm:text-xs font-bold text-slate-800 mt-1.5">Paso 2</span>
+                <span class="text-[9px] sm:text-[10px] text-slate-500 hidden xs:inline">Triaje & Signos</span>
+              </div>
+
+              <!-- Paso 3 -->
+              <div class="relative z-10 flex flex-col items-center">
+                <div id="wizard-step-indicator-3" class="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-200 text-slate-600 font-black text-xs sm:text-sm flex items-center justify-center ring-4 ring-white shadow transition-all">
+                  3
+                </div>
+                <span class="text-[11px] sm:text-xs font-bold text-slate-800 mt-1.5">Paso 3</span>
+                <span class="text-[9px] sm:text-[10px] text-slate-500 hidden xs:inline">Cama & Alta</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONTENIDO DEL FORMULARIO WIZARD -->
+          <div class="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 md:p-8 shadow-soft">
+            <form id="wizard-admission-form" onsubmit="event.preventDefault()">
+              
+              <!-- PASO 1: DATOS DEMOGRÁFICOS -->
+              <div id="wizard-step-1" class="wizard-step space-y-4 sm:space-y-5">
+                <div class="pb-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-1.5 sm:gap-2">
+                      <i data-lucide="user" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                      Paso 1: Datos Personales del Paciente
+                    </h3>
+                    <p class="text-[11px] sm:text-xs text-slate-500">Entidad raíz en la base de datos (<code class="text-primary font-semibold">pacientes</code>)</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">1 / 3</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Nombre Completo *</label>
+                    <input type="text" id="wiz-name" placeholder="Ej. Valeria Patricia Rivas Soto" autocomplete="off" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40 text-xs sm:text-sm">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Cédula / Documento de identidad *</label>
+                    <input type="text" id="wiz-dni" placeholder="Ej. 1061234567" autocomplete="off" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40 text-xs sm:text-sm">
+                  </div>
+                </div>
+
+                <!-- Aviso de privacidad (Habeas Data - Ley 1581 de 2012) -->
+                <div class="flex items-start gap-2 p-3 rounded-xl bg-tertiary-ultralight border border-tertiary/60 text-[11px] text-primary">
+                  <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-secondary mt-0.5"></i>
+                  <p><strong>Datos protegidos:</strong> el nombre no se almacena (el paciente se registra con un seudónimo) y el documento se guarda cifrado con un hash irreversible. Ningún dashboard ni el asistente de IA muestran datos personales.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5 sm:gap-4 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Edad (Años) *</label>
+                    <input type="number" id="wiz-age" min="0" max="120" value="45" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Sexo Biológico *</label>
+                    <select id="wiz-gender" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                      <option value="Femenino">Femenino</option>
+                      <option value="Masculino">Masculino</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Grupo Sanguíneo</label>
+                    <select id="wiz-blood" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                      <option value="O+">O Positivo (O+)</option>
+                      <option value="A+">A Positivo (A+)</option>
+                      <option value="B+">B Positivo (B+)</option>
+                      <option value="AB+">AB Positivo (AB+)</option>
+                      <option value="O-">O Negativo (O-)</option>
+                      <option value="A-">A Negativo (A-)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Teléfono de Urgencias <span class="font-normal text-slate-400">(no se almacena)</span></label>
+                    <input type="tel" id="wiz-phone" placeholder="+57 300 000 0000" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Alergias Documentadas</label>
+                    <input type="text" id="wiz-allergies" placeholder="Ej. Penicilina, AINEs" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                  </div>
+                </div>
+              </div>
+
+              <!-- PASO 2: REGISTRO DE TRIAJE (SIGNOS VITALES) -->
+              <div id="wizard-step-2" class="wizard-step hidden space-y-4 sm:space-y-5">
+                <div class="pb-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-1.5 sm:gap-2">
+                      <i data-lucide="stethoscope" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                      Paso 2: Evaluación Clínica & Triaje
+                    </h3>
+                    <p class="text-[11px] sm:text-xs text-slate-500">Registro dependiente (<code class="text-primary font-semibold">triaje</code>)</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">2 / 3</span>
+                </div>
+
+                <!-- Selector Manchester en Botones -->
+                <div>
+                  <label class="block font-bold text-slate-700 mb-2 text-xs">Nivel de Triaje Manchester:</label>
+                  <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                    
+                    <label class="cursor-pointer border-2 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:border-rose-500 transition-all">
+                      <input type="radio" name="wiz-triage" value="1" class="sr-only">
+                      <span class="font-black text-rose-600">Nivel 1</span>
+                      <span class="font-bold text-[11px] text-slate-800 mt-0.5">Resucitación</span>
+                      <span class="text-[10px] text-slate-500 mt-0.5">Inmediato</span>
+                    </label>
+
+                    <label class="cursor-pointer border-2 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:border-orange-500 transition-all">
+                      <input type="radio" name="wiz-triage" value="2" class="sr-only">
+                      <span class="font-black text-orange-600">Nivel 2</span>
+                      <span class="font-bold text-[11px] text-slate-800 mt-0.5">Emergencia</span>
+                      <span class="text-[10px] text-slate-500 mt-0.5">&lt; 10 min</span>
+                    </label>
+
+                    <label class="cursor-pointer border-2 border-secondary bg-secondary/5 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between">
+                      <input type="radio" name="wiz-triage" value="3" checked class="sr-only">
+                      <span class="font-black text-amber-600">Nivel 3</span>
+                      <span class="font-bold text-[11px] text-slate-800 mt-0.5">Urgente</span>
+                      <span class="text-[10px] text-slate-500 mt-0.5">&lt; 60 min</span>
+                    </label>
+
+                    <label class="cursor-pointer border-2 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:border-emerald-500 transition-all">
+                      <input type="radio" name="wiz-triage" value="4" class="sr-only">
+                      <span class="font-black text-emerald-600">Nivel 4</span>
+                      <span class="font-bold text-[11px] text-slate-800 mt-0.5">Menor</span>
+                      <span class="text-[10px] text-slate-500 mt-0.5">&lt; 120 min</span>
+                    </label>
+
+                    <label class="cursor-pointer border-2 rounded-xl p-2.5 sm:p-3 flex flex-col justify-between hover:border-blue-500 transition-all col-span-2 sm:col-span-1">
+                      <input type="radio" name="wiz-triage" value="5" class="sr-only">
+                      <span class="font-black text-blue-600">Nivel 5</span>
+                      <span class="font-bold text-[11px] text-slate-800 mt-0.5">No Urgente</span>
+                      <span class="text-[10px] text-slate-500 mt-0.5">&lt; 240 min</span>
+                    </label>
+
+                  </div>
+                </div>
+
+                <!-- Signos Vitales -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Presión Art. (mmHg) *</label>
+                    <input type="text" id="wiz-bp" value="125/82" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Pulso (lpm) *</label>
+                    <input type="number" id="wiz-hr" value="78" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Temp. (°C) *</label>
+                    <input type="text" id="wiz-temp" value="36.7" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none">
+                  </div>
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">SatO2 (%) *</label>
+                    <input type="number" id="wiz-spo2" value="98" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none">
+                  </div>
+                </div>
+
+                <div class="text-xs">
+                  <label class="block font-bold text-slate-700 mb-1">Motivo de Consulta y Síntomas *</label>
+                  <textarea id="wiz-symptoms" rows="2" class="w-full px-3 py-2 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40">Dolor precordial opresivo con irradiación a brazo izquierdo de 2 horas de evolución.</textarea>
+                </div>
+              </div>
+
+              <!-- PASO 3: DETALLES DE INGRESO (CAMA ASIGNADA Y DIAGNÓSTICO) -->
+              <div id="wizard-step-3" class="wizard-step hidden space-y-4 sm:space-y-5">
+                <div class="pb-3 border-b border-slate-100 flex items-center justify-between">
+                  <div>
+                    <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-1.5 sm:gap-2">
+                      <i data-lucide="bed-double" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                      Paso 3: Admisión & Cama
+                    </h3>
+                    <p class="text-[11px] sm:text-xs text-slate-500">Enlace con <code class="text-primary font-semibold">camas</code> libres</p>
+                  </div>
+                  <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">3 / 3</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Servicio de Destino *</label>
+                    <select id="wiz-department" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none font-semibold text-xs sm:text-sm">
+                      <option value="Cardiología">Cardiología</option>
+                      <option value="Cuidados Intensivos (UCI)">Cuidados Intensivos (UCI)</option>
+                      <option value="Traumatología">Traumatología</option>
+                      <option value="Pediatría">Pediatría</option>
+                      <option value="Urgencias">Urgencias / Observación</option>
+                    </select>
+                  </div>
+
+                  <!-- Selector Dinámico de Camas Libres -->
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Cama Asignada (Camas Libres en Vivo) *</label>
+                    <select id="wiz-bed" class="w-full px-3.5 py-2.5 border-2 border-secondary rounded-xl bg-tertiary-ultralight focus:outline-none font-bold text-primary text-xs sm:text-sm">
+                      <!-- Opciones inyectadas dinámicamente -->
+                    </select>
+                    <p id="wiz-bed-hint" class="text-[10px] text-slate-500 mt-1">Camas libres consultadas en vivo</p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 text-xs">
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Médico Especialista Tratante *</label>
+                    <select id="wiz-doctor" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none text-xs sm:text-sm">
+                      <option value="Dra. Elena Ramos Morales">Dra. Elena Ramos Morales - Cardiología</option>
+                      <option value="Dr. Carlos Mendoza Soler">Dr. Carlos Mendoza Soler - Traumatología</option>
+                      <option value="Dra. Sofía Valenzuela Paz">Dra. Sofía Valenzuela Paz - UCI</option>
+                      <option value="Dr. Mateo Benítez Rivas">Dr. Mateo Benítez Rivas - Pediatría</option>
+                      <option value="Dr. Alejandro Silva Torrico">Dr. Alejandro Silva Torrico - Urgencias</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block font-bold text-slate-700 mb-1">Estado Inicial del Ingreso</label>
+                    <select id="wiz-status" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none font-semibold text-xs sm:text-sm">
+                      <option value="Internado">Internado en Planta</option>
+                      <option value="Crítico">Crítico / Reanimación</option>
+                      <option value="En Observación">En Observación Urgencias</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="text-xs">
+                  <label class="block font-bold text-slate-700 mb-1">Diagnóstico Clínico Presuntivo *</label>
+                  <textarea id="wiz-diagnosis" rows="2" class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40 font-medium text-xs sm:text-sm">Sospecha de Síndrome Coronario Agudo (SCASEST). Requiere monitorización continua.</textarea>
+                </div>
+              </div>
+
+              <!-- BOTONES DE NAVEGACIÓN DEL WIZARD (RESPONSIVE) -->
+              <div class="pt-5 border-t border-slate-200 flex items-center justify-between gap-2">
+                <button type="button" id="wizard-btn-prev" onclick="MediPulse.Wizard.prevStep()" disabled class="px-4 sm:px-5 py-2.5 rounded-xl border border-slate-300 text-slate-400 bg-slate-100 font-bold text-xs transition-all flex items-center gap-1.5 cursor-not-allowed">
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                  <span>Anterior</span>
+                </button>
+
+                <div class="flex items-center space-x-2">
+                  <button type="button" id="wizard-btn-next" onclick="MediPulse.Wizard.nextStep()" class="px-5 sm:px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary-dark text-white font-bold text-xs shadow-sm transition-all flex items-center gap-1.5">
+                    <span>Siguiente</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                  </button>
+
+                  <button type="button" id="wizard-btn-submit" onclick="MediPulse.Wizard.submit()" class="hidden px-5 sm:px-6 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white font-black text-xs shadow-md transition-all flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-4 h-4 text-tertiary"></i>
+                    <span>Finalizar Ingreso</span>
+                  </button>
+                </div>
+              </div>
+
+            </form>
+          </div>
+
+        </section>
+        <!-- ===================================================================== -->
+        <!-- VISTA 4: GESTIÓN DE DATOS INSTITUCIONALES (CARGA DE ARCHIVOS TXT)     -->
+        <!-- ===================================================================== -->
+        
+        <!-- ===================================================================== -->
+        <!-- VISTA 4: GESTIÓN DE DATOS INSTITUCIONALES (CARGA DE 7 ARCHIVOS TXT)   -->
+        <!-- ===================================================================== -->
+        <section id="view-data" class="spa-view hidden space-y-5 md:space-y-6">
+          
+          <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 class="text-base sm:text-lg md:text-xl font-extrabold text-primary">Ingesta de Datos (ETL) a SQLite</h2>
+              <p class="text-[11px] sm:text-xs text-slate-500">Actualización directa de las <span class="font-semibold text-secondary">7 tablas relacionales</span> de la base de datos hospital.db</p>
+            </div>
+            <span id="db-sync-badge" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 text-xs font-bold flex items-center gap-2 shrink-0">
+              <span class="w-2 h-2 rounded-full bg-slate-400"></span> Comprobando conexión…
+            </span>
+          </div>
+
+          <!-- GRID DE 7 TARJETAS (UNA POR CADA ARCHIVO TXT / TABLA SQL) -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5">
+            
+            <!-- 1. Tabla: Paciente -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="users" class="w-6 h-6 text-primary mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">1. Paciente</h3>
+              <p class="text-[9px] text-slate-400">Paciente.txt</p>
+              <p id="count-paciente" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-paciente').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-paciente" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-paciente" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-paciente')">
+              <button data-upload="paciente" onclick="MediPulse.DataSync.uploadFile('paciente')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 2. Tabla: Triage -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="activity" class="w-6 h-6 text-orange-600 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">2. Triage</h3>
+              <p class="text-[9px] text-slate-400">Triage.txt</p>
+              <p id="count-triage" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-triage').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-triage" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-triage" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-triage')">
+              <button data-upload="triage" onclick="MediPulse.DataSync.uploadFile('triage')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 3. Tabla: Ingresos -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="bed-double" class="w-6 h-6 text-emerald-600 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">3. Ingresos</h3>
+              <p class="text-[9px] text-slate-400">Ingresos.txt</p>
+              <p id="count-ingresos" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-ingresos').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-ingresos" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-ingresos" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-ingresos')">
+              <button data-upload="ingresos" onclick="MediPulse.DataSync.uploadFile('ingresos')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 4. Tabla: Atencion -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="clock" class="w-6 h-6 text-blue-600 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">4. Atención</h3>
+              <p class="text-[9px] text-slate-400">Atencion.txt</p>
+              <p id="count-atencion" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-atencion').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-atencion" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-atencion" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-atencion')">
+              <button data-upload="atencion" onclick="MediPulse.DataSync.uploadFile('atencion')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 5. Tabla: MedicamentoInsumo -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="pill" class="w-6 h-6 text-rose-500 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">5. Medicamentos</h3>
+              <p class="text-[9px] text-slate-400">MedicamentoInsumo.txt</p>
+              <p id="count-medicamento" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-medicamento').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-medicamento" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-medicamento" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-medicamento')">
+              <button data-upload="medicamento" onclick="MediPulse.DataSync.uploadFile('medicamento')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 6. Tabla: Servicios -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="microscope" class="w-6 h-6 text-purple-600 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">6. Servicios</h3>
+              <p class="text-[9px] text-slate-400">Servicios.txt</p>
+              <p id="count-servicios" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-servicios').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-servicios" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-servicios" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-servicios')">
+              <button data-upload="servicios" onclick="MediPulse.DataSync.uploadFile('servicios')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+            <!-- 7. Tabla: ProgramacionCirugia -->
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center text-center group hover:border-primary/40 transition-colors">
+              <i data-lucide="scissors" class="w-6 h-6 text-teal-600 mb-2"></i>
+              <h3 class="font-bold text-slate-800 text-sm">7. Cirugías</h3>
+              <p class="text-[9px] text-slate-400">ProgramacionCirugia.txt</p>
+              <p id="count-cirugia" class="text-[10px] font-bold text-secondary mb-3">—</p>
+              <div class="w-full border-2 border-dashed border-slate-300 rounded-xl p-3 bg-slate-50 mb-3 hover:border-secondary hover:bg-secondary/5 cursor-pointer" onclick="document.getElementById('file-cirugia').click()">
+                <span class="text-[10px] font-bold text-slate-600">Seleccionar .txt</span>
+                <span id="label-cirugia" class="text-[9px] text-slate-400 block mt-1 truncate px-1">Vacío</span>
+              </div>
+              <input type="file" id="file-cirugia" class="hidden" accept=".txt,.csv" onchange="MediPulse.DataSync.handleFileSelect(this, 'label-cirugia')">
+              <button data-upload="cirugia" onclick="MediPulse.DataSync.uploadFile('cirugia')" class="w-full py-2 bg-[#002f5b] hover:bg-opacity-90 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i> Subir a DB
+              </button>
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- BARRA DE NAVEGACIÓN INFERIOR MÓVIL (MOBILE FIRST BOTTOM BAR)               -->
+    <!-- ========================================================================= -->
+    <nav class="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-slate-200/90 h-16 flex items-center justify-around z-30 px-2 shadow-card select-none">
+      
+      <!-- Tab 1: Dashboard BI -->
+      <button data-perm="dashboard" onclick="MediPulse.Navigation.switchView('view-bi')" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-primary font-bold transition-colors" data-target="view-bi">
+        <i data-lucide="bar-chart-3" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">Dashboard</span>
+      </button>
+
+      <!-- Tab 2: Asistente IA -->
+      <button data-perm="assistant" onclick="MediPulse.Navigation.switchView('view-ai')" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-500 font-medium transition-colors" data-target="view-ai">
+        <div class="relative">
+          <i data-lucide="sparkles" class="w-5 h-5 mb-0.5"></i>
+          <span class="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-secondary"></span>
+        </div>
+        <span class="text-[10px]">Asistente IA</span>
+      </button>
+
+      <!-- Tab 3: Ingreso (Wizard) -->
+      <button data-perm="admissions" onclick="MediPulse.Navigation.switchView('view-wizard')" class="mobile-tab-btn flex flex-col items-center justify-center flex-1 py-1 text-slate-500 font-medium transition-colors" data-target="view-wizard">
+        <i data-lucide="user-plus" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">Ingreso</span>
+      </button>
+
+      <!-- Tab 4: API Settings -->
+      <button data-perm="settings" onclick="MediPulse.Navigation.openApiSettingsModal()" class="flex flex-col items-center justify-center flex-1 py-1 text-slate-500 font-medium transition-colors">
+        <i data-lucide="server" class="w-5 h-5 mb-0.5"></i>
+        <span class="text-[10px]">API REST</span>
+      </button>
+
+    </nav>
+
+  </div>
+
+  <!-- MODAL DE CONFIGURACIÓN API REST -->
+  <div id="modal-api-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-5 sm:p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="font-extrabold text-base text-primary flex items-center gap-2">
+          <i data-lucide="server" class="w-5 h-5 text-secondary"></i>
+          Configuración API REST & Mock
+        </h3>
+        <button onclick="MediPulse.Navigation.closeApiSettingsModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4 text-xs">
+        <p id="cfg-api-status" class="px-3 py-2 rounded-xl bg-slate-50 border text-[11px] text-slate-600">Comprobando conexión…</p>
+
+        <div class="p-3.5 bg-slate-50 border rounded-xl flex items-center justify-between gap-3">
+          <div>
+            <p class="font-bold text-slate-800">Fallback automático a Mock</p>
+            <p class="text-[11px] text-slate-500">Si el backend falla o la base de datos no tiene datos, se usa mockData.js para que la app no se caiga</p>
+          </div>
+          <input type="checkbox" id="cfg-auto-fallback-modal" checked class="w-5 h-5 accent-secondary shrink-0">
+        </div>
+
+        <div class="p-3.5 bg-slate-50 border rounded-xl flex items-center justify-between gap-3">
+          <div>
+            <p class="font-bold text-slate-800">Forzar Modo Simulación (Mock)</p>
+            <p class="text-[11px] text-slate-500">No llama al backend: opera en memoria y persiste en LocalStorage</p>
+          </div>
+          <input type="checkbox" id="cfg-use-mock-modal" class="w-5 h-5 accent-secondary shrink-0">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">URL Base API REST (FastAPI):</label>
+          <input type="text" id="cfg-api-url-modal" value="http://localhost:8000/api" class="w-full px-3 py-2 border rounded-xl bg-slate-50 font-mono text-xs">
+        </div>
+
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Latencia Simulada del Mock: <span id="cfg-lat-val" class="text-secondary font-bold">250ms</span></label>
+          <input type="range" id="cfg-api-lat-modal" min="0" max="1500" step="50" value="250" oninput="document.getElementById('cfg-lat-val').innerText = this.value + 'ms'" class="w-full accent-secondary">
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex justify-end space-x-2">
+        <button onclick="MediPulse.Navigation.closeApiSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">Cerrar</button>
+        <button onclick="MediPulse.Navigation.saveApiSettings()" class="px-4 py-2 rounded-xl bg-secondary text-white text-xs font-bold hover:bg-secondary-dark">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PANTALLA DE INICIO DE SESIÓN (JWT) -->
+  <div id="login-screen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gradient-to-br from-primary via-primary-hover to-secondary">
+    <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl p-6 sm:p-8 space-y-5">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-primary text-white flex items-center justify-center shadow-md">
+          <i data-lucide="activity" class="w-7 h-7 text-tertiary"></i>
+        </div>
+        <h1 class="text-lg font-extrabold text-primary leading-tight">KPA-Health · MediPulse OS</h1>
+        <p class="text-xs text-slate-500">Hospital Susana López de Valencia E.S.E.</p>
+      </div>
+      <form id="login-form" onsubmit="MediPulse.Auth.submit(event)" class="space-y-3.5 text-xs" autocomplete="on">
+        <div>
+          <label for="login-username" class="block font-bold text-slate-700 mb-1">Usuario</label>
+          <input id="login-username" name="username" type="text" autocomplete="username" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40 text-sm">
+        </div>
+        <div>
+          <label for="login-password" class="block font-bold text-slate-700 mb-1">Contraseña</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required class="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-slate-50 focus:outline-none focus:ring-2 focus:ring-secondary/40 text-sm">
+        </div>
+        <p id="login-error" class="hidden px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold" role="alert"></p>
+        <button id="login-submit" type="submit" class="w-full py-2.5 rounded-xl bg-secondary hover:bg-secondary-dark text-white font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2">
+          <i data-lucide="log-in" class="w-4 h-4"></i> Iniciar sesión
+        </button>
+        <button id="login-demo" type="button" onclick="MediPulse.Auth.enterDemo()" class="hidden w-full py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-xs">
+          Continuar en modo demostración (datos simulados)
+        </button>
+      </form>
+      <p class="text-[10px] text-center text-slate-400 flex items-center justify-center gap-1">
+        <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> Acceso por roles · sesión firmada con JWT
+      </p>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container" class="fixed bottom-20 md:bottom-5 right-3 md:right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT MODULAR Y REACTIVO                                             -->
+  <!-- ========================================================================= -->
+  <!-- Módulos: configuración, datos simulados, privacidad, cliente HTTP con fallback y servicios de dominio -->
+  <script src="js/config.js?v=20260924e"></script>
+  <script src="js/mockData.js?v=20260924e"></script>
+  <script src="js/services/privacy.js?v=20260924e"></script>
+  <script src="js/services/apiClient.js?v=20260924e"></script>
+  <script src="js/services/authService.js?v=20260924e"></script>
+  <script src="js/services/patientService.js?v=20260924e"></script>
+  <script src="js/services/doctorService.js?v=20260924e"></script>
+  <script src="js/services/appointmentService.js?v=20260924e"></script>
+  <script src="js/services/roomService.js?v=20260924e"></script>
+  <script src="js/services/pharmacyService.js?v=20260924e"></script>
+  <script src="js/services/dashboardService.js?v=20260924e"></script>
+  <script src="js/services/dataService.js?v=20260924e"></script>
+  <script src="js/services/aiService.js?v=20260924e"></script>
+
+  <script>
+    window.MediPulse = window.MediPulse || {};
+
+    // Utilidades de presentación compartidas por los módulos de la SPA
+    const fmtNumber = (value, decimals = 0) => (value === null || value === undefined || Number.isNaN(Number(value)))
+      ? '—'
+      : Number(value).toLocaleString('es-CO', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    const fmtDate = iso => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : '—');
+    const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+
+    // 1. SISTEMA DE NAVEGACIÓN RESPONSIVE
+    MediPulse.Navigation = {
+      currentView: 'view-bi',
+
+      // Vista -> permiso requerido (el backend aplica la misma regla con 403)
+      viewPermissions: { 'view-bi': 'dashboard', 'view-ai': 'assistant', 'view-wizard': 'admissions', 'view-data': 'data' },
+
+      firstAllowedView() {
+        return Object.keys(this.viewPermissions).find(v => MediPulse.AuthService.can(this.viewPermissions[v])) || 'view-bi';
+      },
+
+      switchView(viewId) {
+        if (!MediPulse.AuthService.can(this.viewPermissions[viewId])) {
+          if (MediPulse.AuthService.session) MediPulse.UI.toast('Su rol no tiene acceso a ese módulo', 'warning');
+          viewId = this.firstAllowedView();
+        }
+        this.currentView = viewId;
+
+        // Ocultar todas las secciones
+        document.querySelectorAll('.spa-view').forEach(view => {
+          view.classList.add('hidden');
+        });
+
+        // Mostrar sección solicitada
+        const target = document.getElementById(viewId);
+        if (target) {
+          target.classList.remove('hidden');
+        }
+
+        // Actualizar tabs en sidebar (escritorio)
+        document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+          if (btn.getAttribute('data-target') === viewId) {
+            btn.classList.add('bg-primary-light', 'text-white', 'shadow-inner');
+            btn.classList.remove('text-white/90');
+          } else {
+            btn.classList.remove('bg-primary-light', 'shadow-inner');
+            btn.classList.add('text-white/90');
+          }
+        });
+
+        // Actualizar tabs en bottom bar (móvil)
+        document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+          if (btn.getAttribute('data-target') === viewId) {
+            btn.classList.add('text-primary', 'font-bold');
+            btn.classList.remove('text-slate-500', 'font-medium');
+          } else {
+            btn.classList.remove('text-primary', 'font-bold');
+            btn.classList.add('text-slate-500', 'font-medium');
+          }
+        });
+
+        // Actualizar contenido con datos reales (con fallback automático a mock)
+        if (viewId === 'view-bi') {
+          MediPulse.BI.render();
+        } else if (viewId === 'view-wizard') {
+          MediPulse.Wizard.prepare();
+        } else if (viewId === 'view-data') {
+          MediPulse.DataSync.refreshCounts();
+        }
+
+        // Cerrar sidebar móvil si está abierto
+        this.closeMobileDrawer();
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        lucide.createIcons();
+      },
+
+      openMobileDrawer() {
+        const sidebar = document.getElementById('app-sidebar');
+        const overlay = document.getElementById('mobile-sidebar-overlay');
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+      },
+
+      closeMobileDrawer() {
+        const sidebar = document.getElementById('app-sidebar');
+        const overlay = document.getElementById('mobile-sidebar-overlay');
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      },
+
+      openApiSettingsModal() {
+        if (!MediPulse.AuthService.can('settings')) {
+          MediPulse.UI.toast('Solo un administrador puede cambiar la configuración de la API', 'warning');
+          return;
+        }
+        const config = MediPulse.Config;
+        document.getElementById('cfg-use-mock-modal').checked = config.useMock;
+        document.getElementById('cfg-auto-fallback-modal').checked = config.autoFallback;
+        document.getElementById('cfg-api-url-modal').value = config.apiUrl;
+        document.getElementById('cfg-api-lat-modal').value = config.mockLatency;
+        document.getElementById('cfg-lat-val').innerText = `${config.mockLatency}ms`;
+        setText('cfg-api-status', MediPulse.UI.describeApiStatus(MediPulse.ApiClient.status, MediPulse.ApiClient.statusReason));
+        document.getElementById('modal-api-settings').classList.remove('hidden');
+      },
+
+      closeApiSettingsModal() {
+        document.getElementById('modal-api-settings').classList.add('hidden');
+      },
+
+      saveApiSettings() {
+        MediPulse.Config.saveSettings({
+          useMock: document.getElementById('cfg-use-mock-modal').checked,
+          autoFallback: document.getElementById('cfg-auto-fallback-modal').checked,
+          apiUrl: document.getElementById('cfg-api-url-modal').value,
+          mockLatency: document.getElementById('cfg-api-lat-modal').value
+        });
+        MediPulse.ApiClient.setStatus(MediPulse.Config.useMock ? 'mock' : 'unknown');
+        this.closeApiSettingsModal();
+        MediPulse.UI.toast('Configuración de la API guardada', 'success');
+        MediPulse.AI.refreshProviders();
+        this.switchView(this.currentView);
+      }
+    };
+
+    // 2. VISTA 1: MOTOR DE BUSINESS INTELLIGENCE (BI) — datos reales de hospital.db
+    MediPulse.BI = {
+      filters: { period: 'today', service: 'all' },
+      charts: {},
+      loading: false,
+      pending: false,
+      refreshTimer: null,
+      palette: ['#1f4a2a', '#3b8070', '#9ed3a2', '#e11d48', '#f59e0b', '#3b82f6', '#8b5cf6', '#14b8a6', '#64748b', '#f97316'],
+
+      applyFilters() {
+        this.filters.period = document.getElementById('bi-filter-period').value;
+        this.filters.service = document.getElementById('bi-filter-service').value;
+        this.render();
+      },
+
+      startAutoRefresh() {
+        clearInterval(this.refreshTimer);
+        this.refreshTimer = setInterval(() => {
+          if (MediPulse.Navigation.currentView === 'view-bi' && document.visibilityState === 'visible') {
+            this.render({ silent: true });
+          }
+        }, MediPulse.Config.dashboardRefreshMs);
+      },
+
+      async render(options = {}) {
+        if (this.loading) { this.pending = true; return; }
+        this.loading = true;
+        const section = document.getElementById('view-bi');
+        if (!options.silent) section.classList.add('opacity-70');
+        try {
+          const data = await MediPulse.DashboardService.get(this.filters);
+          this.paint(data);
+        } catch (error) {
+          MediPulse.UI.toast(`No se pudo cargar el dashboard: ${error.message}`, 'error');
+        } finally {
+          section.classList.remove('opacity-70');
+          this.loading = false;
+          if (this.pending) { this.pending = false; this.render({ silent: true }); }
+        }
+      },
+
+      paint(d) {
+        const k = d.kpis || {};
+        const esc = MediPulse.UI.escape;
+
+        // Encabezado: fecha de corte y origen de los datos
+        const live = d.source !== 'mock';
+        setText('bi-reference-date', `Datos al ${fmtDate(d.referenceDate)} · ${d.periodLabel || ''}${d.service && d.service !== 'all' ? ` · ${d.service}` : ''}`);
+        const sourceBadge = document.getElementById('bi-source-badge');
+        sourceBadge.textContent = live ? 'Datos en vivo · hospital.db' : 'Modo respaldo · datos simulados';
+        sourceBadge.className = `px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${live ? 'bg-white/20' : 'bg-amber-400 text-amber-950'}`;
+        this.syncServiceOptions(d.services || [], d.service || 'all');
+
+        // 1. KPIs superiores
+        setText('kpi-occupancy-rate', `${fmtNumber(k.occupancyRate, 1)}%`);
+        setText('kpi-beds-ratio', `${fmtNumber(k.occupiedBeds)} de ${fmtNumber(k.totalBeds)} camas ocupadas`);
+        setText('kpi-wait-time', k.avgWaitMinutes !== null && k.avgWaitMinutes !== undefined ? `${fmtNumber(k.avgWaitMinutes, 1)} min` : 'Sin datos');
+        setText('kpi-wait-subtitle', `Triaje → atención · ${fmtNumber(k.waitPatients)} pacientes`);
+        setText('kpi-surgery', `${fmtNumber(k.surgeriesPerformed)} / ${fmtNumber(k.surgeriesScheduled)}`);
+        setText('kpi-surgery-subtitle', k.surgeryComplianceRate !== null && k.surgeryComplianceRate !== undefined
+          ? `Realizadas vs programadas · ${fmtNumber(k.surgeryComplianceRate, 1)}%`
+          : 'Realizadas vs programadas');
+        setText('kpi-critical-count', fmtNumber(k.criticalMeds));
+        setText('kpi-critical-subtitle', `${fmtNumber(k.medsUnder5Days)} con menos de 5 días de inventario`);
+
+        // 2. Barras de capacidad (por servicio o, si hay filtro, por área del servicio)
+        setText('bi-wards-subtitle', d.service && d.service !== 'all'
+          ? `Detalle por área de ${d.service}`
+          : 'Distribución de camas censables y operativas');
+        const wardsContainer = document.getElementById('bi-wards-container');
+        wardsContainer.innerHTML = (d.wards || []).map(w => {
+          const pct = w.occupancyPct || 0;
+          const colorBar = pct > 80 ? 'bg-rose-500' : (pct >= 50 ? 'bg-secondary' : 'bg-emerald-500');
+          const alertText = pct > 80
+            ? '<i data-lucide="alert-triangle" class="w-3 h-3 inline mr-0.5 text-amber-500"></i> Saturación Alta'
+            : 'Nominal';
+          return `
+            <div>
+              <div class="flex justify-between text-xs font-bold mb-1 gap-2">
+                <span class="text-slate-800 truncate">${esc(w.wing)}</span>
+                <span class="text-primary font-black shrink-0">${w.occupied} / ${w.total} (${pct}%)</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div class="h-2.5 rounded-full ${colorBar} transition-all duration-500" style="width: ${pct}%"></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-slate-400 mt-1">
+                <span>Libres: ${w.free}${w.unavailable ? ` · No disponibles: ${w.unavailable}` : ''}</span>
+                <span class="flex items-center">${alertText}</span>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p class="text-xs text-slate-400">Sin camas registradas para este filtro.</p>';
+
+        setText('bi-last-sync', live
+          ? `datos al ${fmtDate(d.referenceDate)}${d.lastSync ? ` · recalculado ${d.lastSync.slice(11, 16)}` : ''}`
+          : 'sin conexión con hospital.db');
+        document.getElementById('bi-system-status').innerHTML = live
+          ? '<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-600"></i> Datos reales · hospital.db'
+          : '<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500"></i> Modo respaldo (mockData.js)';
+
+        // 3. Censo activo priorizado por triaje (anonimizado)
+        const tColors = { 1: 'bg-rose-600 text-white', 2: 'bg-orange-500 text-white', 3: 'bg-amber-500 text-white', 4: 'bg-emerald-600 text-white', 5: 'bg-blue-600 text-white' };
+        const urgentContainer = document.getElementById('bi-urgent-patients-list');
+        urgentContainer.innerHTML = (d.urgentPatients || []).map(raw => {
+          const p = MediPulse.Privacy.maskPatient(raw);
+          return `
+            <div class="py-2.5 flex items-center justify-between gap-2">
+              <div class="flex items-center space-x-2.5 min-w-0">
+                <span class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl ${tColors[p.triageLevel] || 'bg-slate-500 text-white'} flex items-center justify-center font-black text-xs shrink-0 shadow-sm">
+                  T${p.triageLevel || '?'}
+                </span>
+                <div class="min-w-0">
+                  <p class="font-bold text-xs text-slate-800 truncate">${esc(p.name)}${String(p.name).includes(p.id) ? '' : ` <span class="text-[10px] text-slate-400 font-medium">${esc(p.id)}</span>`}</p>
+                  <p class="text-[10px] sm:text-[11px] text-slate-500 truncate max-w-[170px] sm:max-w-[220px]">${esc(p.diagnosis || 'Sin diagnóstico registrado')}</p>
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <span class="text-[10px] font-bold text-secondary block">${esc(p.roomNumber || '')}</span>
+                <span class="text-[9px] text-slate-400">${esc(p.department || '')}</span>
+              </div>
+            </div>
+          `;
+        }).join('') || '<p class="py-3 text-xs text-slate-400">No hay pacientes activos para este filtro.</p>';
+
+        // 4. Gráficos
+        this.renderCharts(d);
+        lucide.createIcons();
+      },
+
+      syncServiceOptions(services, selected) {
+        const select = document.getElementById('bi-filter-service');
+        if (!services.length) return;
+        const current = ['all', ...services].join('|');
+        if (select.dataset.options !== current) {
+          select.innerHTML = '<option value="all">Todos los Servicios</option>' +
+            services.map(s => `<option value="${MediPulse.UI.escape(s)}">${MediPulse.UI.escape(s)}</option>`).join('');
+          select.dataset.options = current;
+        }
+        select.value = services.includes(selected) ? selected : 'all';
+      },
+
+      makeChart(key, canvasId, config) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas || typeof Chart === 'undefined') return;
+        if (this.charts[key]) this.charts[key].destroy();
+        this.charts[key] = new Chart(canvas, config);
+      },
+
+      renderCharts(d) {
+        // Gráfico 1: Evolución de ocupación (línea) + ingresos por día (barras)
+        const trend = d.occupancyTrend || { labels: [], occupancyPct: [], admissions: [] };
+        setText('bi-trend-subtitle', `Ocupación estimada (%) e ingresos por día · últimos ${trend.windowDays || trend.labels.length} días`);
+        this.makeChart('tendencia', 'chart-tendencia', {
+          data: {
+            labels: trend.labels,
+            datasets: [
+              {
+                type: 'line', label: 'Ocupación (%)', data: trend.occupancyPct, yAxisID: 'y',
+                borderColor: '#3b8070', backgroundColor: 'rgba(59, 128, 112, 0.12)', borderWidth: 3,
+                tension: 0.35, fill: true, pointBackgroundColor: '#1f4a2a', pointRadius: trend.labels.length > 14 ? 0 : 3
+              },
+              {
+                type: 'bar', label: 'Ingresos', data: trend.admissions, yAxisID: 'y1',
+                backgroundColor: 'rgba(158, 211, 162, 0.55)', borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+            scales: {
+              y: { beginAtZero: true, max: 100, title: { display: true, text: '% ocupación' }, grid: { borderDash: [4, 4] } },
+              y1: { beginAtZero: true, position: 'right', grid: { display: false }, title: { display: true, text: 'Ingresos' } },
+              x: { grid: { display: false } }
+            }
+          }
+        });
+
+        // Gráfico 2: Distribución por servicio (dona)
+        const dist = d.serviceDistribution || { labels: [], values: [] };
+        setText('bi-dist-subtitle', `Ingresos por servicio · ${d.periodLabel || 'periodo'}`);
+        this.makeChart('distribucion', 'chart-distribucion', {
+          type: 'doughnut',
+          data: {
+            labels: dist.labels,
+            datasets: [{ data: dist.values, backgroundColor: dist.labels.map((_, i) => this.palette[i % this.palette.length]), borderWidth: 0 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, cutout: '65%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }
+          }
+        });
+
+        // Gráfico 3: Stock crítico de medicamentos (barras)
+        const meds = d.criticalMeds || [];
+        setText('bi-meds-subtitle', d.source === 'mock'
+          ? 'Stock actual frente al mínimo de seguridad (datos simulados)'
+          : 'Stock actual frente al mínimo de seguridad · stock simulado a partir del consumo real');
+        this.makeChart('medicamentos', 'chart-medicamentos', {
+          type: 'bar',
+          data: {
+            labels: meds.map(m => (m.name.length > 22 ? `${m.name.substring(0, 22)}…` : m.name)),
+            datasets: [
+              { label: 'Stock actual', data: meds.map(m => m.stock), backgroundColor: meds.map(m => (m.status === 'Crítico' ? '#e11d48' : '#f59e0b')), borderRadius: 4 },
+              { label: 'Stock mínimo', data: meds.map(m => m.minStock), backgroundColor: '#cbd5e1', borderRadius: 4 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: {
+                callbacks: {
+                  title: items => meds[items[0].dataIndex].name,
+                  afterBody: items => {
+                    const m = meds[items[0].dataIndex];
+                    return m.daysOfInventory !== null && m.daysOfInventory !== undefined ? `Cobertura: ${fmtNumber(m.daysOfInventory, 1)} días` : '';
+                  }
+                }
+              }
+            },
+            scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } }
+          }
+        });
+      }
+    };
+
+    // 3. VISTA 2: ASISTENTE IA KPA-HEALTH (NL2SQL + GUARDRAILS + VOZ)
+    // POST /api/ai/query con switch Local (Qwen 3 8B) / Nube. La vista por defecto muestra solo la
+    // respuesta en lenguaje natural; el detalle técnico (SQL) se ve al activar "Detalle técnico".
+    MediPulse.AI = {
+      mode: localStorage.getItem('medipulse_ai_mode') || 'local',
+      showTechnical: localStorage.getItem('medipulse_ai_show_technical') === 'true',
+      providers: {},
+      voiceStatus: null,
+      busy: false,
+      maxRenderedRows: 50,
+      recorder: null,
+      recordingTimer: null,
+
+      async init() {
+        this.renderModeSwitch();
+        this.applyTechnicalView();
+        this.setupVoiceInput();
+        await this.refreshProviders();
+      },
+
+      async refreshProviders() {
+        try {
+          const data = await MediPulse.AIService.providers();
+          this.providers = Object.fromEntries((data.providers || []).map(p => [p.mode, p]));
+          this.voiceStatus = data.voice || null;
+          if (!localStorage.getItem('medipulse_ai_mode') && data.defaultMode) this.mode = data.defaultMode;
+          // Si el motor elegido no está disponible (p. ej. un PC sin Ollama) y el otro sí, se usa el otro
+          const other = this.mode === 'local' ? 'cloud' : 'local';
+          if (this.providers[this.mode] && !this.providers[this.mode].available && this.providers[other] && this.providers[other].available) {
+            MediPulse.UI.toast(`Motor ${this.mode === 'local' ? 'local' : 'en la nube'} no disponible: se usa el motor ${other === 'local' ? 'local' : 'en la nube'}`, 'info');
+            this.mode = other;
+          }
+        } catch (error) {
+          this.providers = {};
+          this.voiceStatus = null;
+        }
+        this.renderModeSwitch();
+        this.renderVoiceButton();
+      },
+
+      setMode(mode) {
+        this.mode = mode;
+        localStorage.setItem('medipulse_ai_mode', mode);
+        this.renderModeSwitch();
+        const provider = this.providers[mode];
+        const label = mode === 'local' ? 'Local' : 'Nube';
+        if (provider && !provider.available) {
+          MediPulse.UI.toast(`Modo ${label}: ${provider.detail}`, 'warning');
+        } else {
+          MediPulse.UI.toast(`Motor de IA: ${label}${provider ? ` (${provider.model})` : ''}`, 'info');
+        }
+      },
+
+      renderModeSwitch() {
+        ['local', 'cloud'].forEach(mode => {
+          const btn = document.getElementById(`ai-mode-${mode}`);
+          if (!btn) return;
+          const active = this.mode === mode;
+          btn.setAttribute('aria-pressed', active);
+          btn.className = `px-2 sm:px-2.5 py-1 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all ${active ? 'bg-white text-primary shadow-sm' : 'text-slate-500 hover:text-primary'}`;
+        });
+
+        const badge = document.getElementById('ai-status-badge');
+        if (!badge) return;
+        const provider = this.providers[this.mode];
+        const base = 'px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold border shrink-0';
+        if (!provider) {
+          badge.className = `${base} bg-rose-100 text-rose-700 border-rose-200`;
+          badge.innerText = 'Motor sin conexión';
+          badge.title = 'Inicie el backend: uvicorn backend.main:app --port 8000';
+        } else if (provider.available) {
+          badge.className = `${base} bg-emerald-100 text-emerald-800 border-emerald-200`;
+          badge.innerText = `${this.mode === 'local' ? 'Motor local' : 'Motor en la nube'} listo`;
+          badge.title = `${provider.model} · ${provider.detail}`;
+        } else {
+          badge.className = `${base} bg-amber-100 text-amber-800 border-amber-200`;
+          badge.innerText = `${this.mode === 'local' ? 'Motor local' : 'Motor en la nube'} no disponible`;
+          badge.title = provider.detail;
+        }
+      },
+
+      // ------------------------------------------------ Detalle técnico (SQL)
+      toggleTechnical() {
+        this.showTechnical = !this.showTechnical;
+        localStorage.setItem('medipulse_ai_show_technical', this.showTechnical);
+        this.applyTechnicalView();
+        MediPulse.UI.toast(this.showTechnical ? 'Detalle técnico visible (consulta SQL generada)' : 'Vista simplificada: solo la respuesta', 'info');
+      },
+
+      applyTechnicalView() {
+        const chat = document.getElementById('ai-chat-messages');
+        if (chat) chat.classList.toggle('show-technical', this.showTechnical);
+        const toggle = document.getElementById('ai-tech-toggle');
+        const knob = document.getElementById('ai-tech-knob');
+        if (toggle) {
+          toggle.setAttribute('aria-checked', this.showTechnical);
+          toggle.classList.toggle('bg-secondary', this.showTechnical);
+          toggle.classList.toggle('bg-slate-200', !this.showTechnical);
+        }
+        if (knob) knob.classList.toggle('translate-x-4', this.showTechnical);
+      },
+
+      // ------------------------------------------------------------ Voz (Whisper)
+      // Feature flag: si MediPulse.Config.ENABLE_VOICE_INPUT es false, el botón NO se crea en el DOM.
+      setupVoiceInput() {
+        if (!MediPulse.Config.ENABLE_VOICE_INPUT) return;
+        const supported = navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder;
+        if (!supported) {
+          console.info('[MediPulse AI] El navegador no permite grabar audio: el micrófono no se muestra.');
+          return;
+        }
+        const submitBtn = document.getElementById('ai-chat-btn-submit');
+        if (!submitBtn || document.getElementById('ai-voice-btn')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'ai-voice-btn';
+        btn.setAttribute('aria-label', 'Dictar pregunta por voz');
+        btn.onclick = () => this.toggleRecording();
+        submitBtn.parentNode.insertBefore(btn, submitBtn);
+        this.renderVoiceButton();
+      },
+
+      renderVoiceButton(state = null) {
+        const btn = document.getElementById('ai-voice-btn');
+        if (!btn) return;
+        const recording = this.recorder && this.recorder.state === 'recording';
+        const current = state || (recording ? 'recording' : 'idle');
+        const base = 'px-3 sm:px-3.5 py-2.5 sm:py-3 rounded-xl font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center gap-1.5 shrink-0 focus:ring-2 focus:ring-secondary/40';
+        const voice = this.voiceStatus;
+        if (current === 'recording') {
+          btn.className = `${base} bg-rose-600 hover:bg-rose-700 text-white voice-recording`;
+          btn.innerHTML = '<i data-lucide="square" class="w-4 h-4"></i><span id="ai-voice-timer" class="text-[11px] tabular-nums">0:00</span>';
+          btn.title = 'Detener y transcribir';
+        } else if (current === 'transcribing') {
+          btn.className = `${base} bg-slate-200 text-slate-600 cursor-wait`;
+          btn.innerHTML = '<div class="w-4 h-4 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>';
+          btn.title = 'Transcribiendo con Whisper local…';
+        } else {
+          btn.className = `${base} bg-white border border-slate-300 text-secondary hover:bg-secondary/5`;
+          btn.innerHTML = '<i data-lucide="mic" class="w-4 h-4"></i>';
+          btn.title = voice && voice.enabled
+            ? `Dictar pregunta (voz local · ${voice.model || 'whisper'}${voice.loaded ? '' : ' · se carga en el primer uso'})`
+            : 'Dictar pregunta por voz';
+        }
+        btn.disabled = current === 'transcribing';
+        lucide.createIcons();
+      },
+
+      async toggleRecording() {
+        if (this.recorder && this.recorder.state === 'recording') {
+          this.recorder.stop();
+          return;
+        }
+        if (this.busy) {
+          MediPulse.UI.toast('Espere a que termine la consulta en curso', 'warning');
+          return;
+        }
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (error) {
+          MediPulse.UI.toast('No se pudo acceder al micrófono. Revise los permisos del navegador.', 'error');
+          return;
+        }
+        const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4']
+          .find(type => window.MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) || '';
+        const chunks = [];
+        this.recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+        this.recorder.ondataavailable = event => { if (event.data && event.data.size) chunks.push(event.data); };
+        this.recorder.onstop = async () => {
+          clearInterval(this.recordingTimer);
+          stream.getTracks().forEach(track => track.stop());
+          const blob = new Blob(chunks, { type: this.recorder.mimeType || mimeType || 'audio/webm' });
+          await this.transcribe(blob);
+        };
+        this.recorder.start();
+        const started = Date.now();
+        this.renderVoiceButton('recording');
+        MediPulse.UI.toast('Grabando… habla en español y presiona de nuevo para terminar', 'info');
+        this.recordingTimer = setInterval(() => {
+          const seconds = Math.floor((Date.now() - started) / 1000);
+          setText('ai-voice-timer', `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`);
+          if (Date.now() - started >= MediPulse.Config.VOICE_MAX_RECORDING_MS && this.recorder.state === 'recording') {
+            this.recorder.stop();
+          }
+        }, 250);
+      },
+
+      async transcribe(blob) {
+        if (!blob.size) {
+          this.renderVoiceButton('idle');
+          MediPulse.UI.toast('No se detectó audio en la grabación', 'warning');
+          return;
+        }
+        this.renderVoiceButton('transcribing');
+        try {
+          const result = await MediPulse.AIService.transcribe(blob);
+          const text = (result.text || '').trim();
+          if (!text) {
+            MediPulse.UI.toast('No se reconoció ninguna pregunta en el audio', 'warning');
+            return;
+          }
+          const input = document.getElementById('ai-chat-input');
+          input.value = text;
+          input.focus();
+          MediPulse.UI.toast(`Transcripción lista (${(result.elapsedMs / 1000).toFixed(1)} s). Revise y presione Enviar.`, 'success');
+          if (MediPulse.Config.VOICE_AUTO_SUBMIT) {
+            input.value = '';
+            this.processQuery(text);
+          }
+        } catch (error) {
+          const message = error.status === 501 ? 'El reconocimiento de voz está deshabilitado en el servidor' : error.message;
+          MediPulse.UI.toast(message, 'error');
+        } finally {
+          this.renderVoiceButton('idle');
+        }
+      },
+
+      // ---------------------------------------------------------------- Chat
+      useFewShotPrompt(text) {
+        const query = text.trim();
+        document.getElementById('ai-chat-input').value = query;
+        this.processQuery(query);
+      },
+
+      handleChatSubmit(e) {
+        e.preventDefault();
+        const input = document.getElementById('ai-chat-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        this.processQuery(text);
+      },
+
+      async processQuery(userQuery) {
+        if (this.busy) {
+          MediPulse.UI.toast('Espere a que termine la consulta en curso', 'warning');
+          return;
+        }
+        this.busy = true;
+        const chatContainer = document.getElementById('ai-chat-messages');
+        const submitBtn = document.getElementById('ai-chat-btn-submit');
+        if (submitBtn) submitBtn.disabled = true;
+
+        // Mensaje Usuario (texto escapado y sin documentos de identidad)
+        const userMsg = document.createElement('div');
+        userMsg.className = 'flex items-start justify-end space-x-2.5';
+        userMsg.innerHTML = `
+          <div class="bg-primary text-white rounded-2xl rounded-tr-sm p-3.5 text-xs max-w-lg shadow-sm">
+            <p class="font-semibold">${MediPulse.UI.escape(MediPulse.Privacy.scrubText(userQuery))}</p>
+          </div>
+          <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+            TÚ
+          </div>
+        `;
+        chatContainer.appendChild(userMsg);
+
+        // Indicador Cargando
+        const loadingMsg = document.createElement('div');
+        loadingMsg.className = 'flex items-start space-x-2.5 max-w-2xl';
+        loadingMsg.innerHTML = `
+          <div class="w-8 h-8 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
+            <i data-lucide="sparkles" class="w-4 h-4 text-tertiary"></i>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm p-3.5 text-xs text-slate-500 flex items-center space-x-2">
+            <div class="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
+            <span>Analizando la información del hospital…</span>
+          </div>
+        `;
+        chatContainer.appendChild(loadingMsg);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        lucide.createIcons();
+
+        try {
+          const data = await MediPulse.AIService.query(userQuery, this.mode);
+          loadingMsg.remove();
+          chatContainer.appendChild(this.renderAnswer(data));
+        } catch (error) {
+          loadingMsg.remove();
+          chatContainer.appendChild(this.renderError(error.message));
+        } finally {
+          this.busy = false;
+          if (submitBtn) submitBtn.disabled = false;
+          chatContainer.scrollTop = chatContainer.scrollHeight;
+          lucide.createIcons();
+        }
+      },
+
+      renderAnswer(data) {
+        const e = v => MediPulse.UI.escape(v);
+        const t = data.timings || {};
+        const hospital = (data.category || 'hospital') === 'hospital';
+        const labels = (data.columnLabels && data.columnLabels.length) ? data.columnLabels : (data.columns || []);
+        const rows = MediPulse.Privacy.maskTable(data.columns || [], data.rows || []);
+        const engineLabel = data.fromMock ? 'Respaldo · datos simulados'
+          : `${data.mode === 'local' ? 'Motor local' : 'Motor en la nube'} · ${data.model}`;
+
+        let title = 'Respuesta del asistente';
+        let icon = 'check-circle-2';
+        let iconColor = 'text-emerald-600';
+        if (!hospital) {
+          const titles = { saludo: 'Asistente KPA-Health', fuera_de_alcance: 'Fuera del alcance del asistente', idioma_no_soportado: 'Idioma no soportado', datos_personales: 'Protección de datos personales', vacia: 'Asistente KPA-Health' };
+          title = titles[data.category] || 'Asistente KPA-Health';
+          icon = data.category === 'datos_personales' ? 'shield-check' : (data.category === 'saludo' ? 'sparkles' : 'info');
+          iconColor = data.category === 'datos_personales' ? 'text-primary' : 'text-secondary';
+        } else if (!data.success) {
+          title = 'No pude obtener esa información';
+          icon = 'alert-triangle';
+          iconColor = 'text-amber-600';
+        }
+
+        // Tabla de resultados (etiquetas en español; las respuestas de un solo dato se leen en el texto)
+        const table = rows.length > 1 ? `
+          <div class="overflow-x-auto rounded-xl border border-slate-200 bg-white max-h-80">
+            ${this.renderTable(labels, rows)}
+          </div>` : '';
+        const technicalTable = rows.length === 1 ? `
+          <div class="ai-tech overflow-x-auto rounded-xl border border-slate-200 bg-white">
+            ${this.renderTable(labels, rows)}
+          </div>` : '';
+
+        const sqlBlock = data.sql ? `
+          <div class="ai-tech rounded-xl overflow-hidden border border-emerald-950/40">
+            <div class="bg-primary-dark text-tertiary text-[10px] font-bold px-3 py-1.5 flex justify-between items-center font-mono gap-2">
+              <span>CONSULTA SQL GENERADA</span>
+              <span class="text-white/60">IA ${e(t.llmMs ?? 0)} ms · SQL ${e(t.sqlMs ?? 0)} ms</span>
+            </div>
+            <pre class="sql-code-block p-3 text-[11px] overflow-x-auto"><code>${e(data.sql)}</code></pre>
+          </div>` : '';
+
+        const attempts = (data.attempts || []).length ? `
+          <details class="ai-tech rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900">
+            <summary class="font-bold cursor-pointer">Autocorrección: ${data.attempts.length} intento(s) rechazado(s) por el validador</summary>
+            ${data.attempts.map(a => `
+              <pre class="mt-2 p-2 bg-white rounded border border-amber-100 overflow-x-auto"><code>${e(a.sql)}</code></pre>
+              <p class="mt-1">${e(a.error)}</p>
+            `).join('')}
+          </details>` : '';
+
+        const technicalMeta = [
+          data.explanation ? `Interpretación: ${e(data.explanation)}` : '',
+          data.blockedBy ? `Filtrado por: ${data.blockedBy === 'entrada' ? 'guardrail de entrada (sin usar el modelo)' : 'clasificación del modelo'}` : '',
+          `Categoría: ${e(data.category || 'hospital')}`,
+          t.totalMs ? `Tiempo total ${(t.totalMs / 1000).toFixed(1)} s` : '',
+          ...(data.warnings || []).map(w => e(w))
+        ].filter(Boolean);
+
+        const shown = Math.min(rows.length, this.maxRenderedRows);
+        const footer = [
+          data.referenceDate ? `Datos al ${fmtDate(data.referenceDate)}` : '',
+          rows.length > 1 ? `${fmtNumber(data.rowCount)} resultado(s)${data.rowCount > shown ? ` · se muestran ${shown}` : ''}` : ''
+        ].filter(Boolean).join(' · ');
+
+        const aiMsg = document.createElement('div');
+        aiMsg.className = 'flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl animate-in fade-in duration-200';
+        aiMsg.innerHTML = `
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
+            <i data-lucide="bot" class="w-4 h-4 sm:w-5 sm:h-5 text-tertiary"></i>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs text-slate-800 space-y-3 shadow-sm w-full min-w-0">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <p class="font-bold text-primary flex items-center gap-1.5">
+                <i data-lucide="${icon}" class="w-4 h-4 ${iconColor}"></i>
+                ${title}
+              </p>
+              <span class="ai-tech px-2 py-0.5 rounded-full text-[10px] font-bold bg-tertiary-light text-primary border border-tertiary">${e(engineLabel)}</span>
+            </div>
+            <p class="text-slate-700 leading-relaxed text-[13px]">${e(MediPulse.Privacy.scrubText(data.answer))}</p>
+            ${table}
+            ${sqlBlock}
+            ${technicalTable}
+            ${attempts}
+            ${technicalMeta.length ? `<div class="ai-tech text-[10px] text-slate-500 space-y-0.5">${technicalMeta.map(m => `<p>${m}</p>`).join('')}</div>` : ''}
+            ${footer ? `<p class="text-[10px] text-slate-400">${footer}</p>` : ''}
+            ${data.fromMock ? '<p class="text-[10px] text-amber-700">Respuesta en modo respaldo con datos simulados: el motor de IA no está disponible.</p>' : ''}
+          </div>
+        `;
+        return aiMsg;
+      },
+
+      renderTable(labels, rows) {
+        const e = v => MediPulse.UI.escape(v);
+        const format = cell => (typeof cell === 'number' ? fmtNumber(cell, Number.isInteger(cell) ? 0 : 1) : e(cell));
+        const body = rows.slice(0, this.maxRenderedRows).map(row => `
+          <tr>${row.map(cell => `<td class="p-2 text-slate-700 whitespace-nowrap">${cell === null ? '<span class="text-slate-300">—</span>' : format(cell)}</td>`).join('')}</tr>
+        `).join('');
+        return `
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-500 font-bold uppercase text-[10px] sticky top-0">
+              <tr>${labels.map(c => `<th class="p-2 whitespace-nowrap">${e(c)}</th>`).join('')}</tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              ${body || `<tr><td class="p-2 text-slate-400" colspan="${labels.length}">Sin resultados</td></tr>`}
+            </tbody>
+          </table>
+        `;
+      },
+
+      renderError(message) {
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl';
+        errorMsg.innerHTML = `
+          <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <i data-lucide="alert-circle" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+          </div>
+          <div class="bg-rose-50 border border-rose-200 rounded-2xl rounded-tl-sm p-4 text-xs text-rose-900 space-y-1.5 shadow-sm">
+            <p class="font-bold">No pude responder en este momento</p>
+            <p>${MediPulse.UI.escape(message)}</p>
+            <p class="text-[10px] text-rose-700">Verifique que el servidor del hospital esté activo y que el motor de IA seleccionado esté disponible.</p>
+          </div>
+        `;
+        this.refreshProviders();
+        return errorMsg;
+      },
+
+      clearHistory() {
+        const container = document.getElementById('ai-chat-messages');
+        container.innerHTML = `
+          <div class="flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl">
+            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
+              <i data-lucide="sparkles" class="w-4 h-4 sm:w-5 sm:h-5 text-tertiary"></i>
+            </div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm p-3.5 sm:p-4 text-xs text-slate-800 leading-relaxed shadow-sm">
+              <p class="font-bold text-primary mb-1">Conversación reiniciada</p>
+              <p>¡Hola de nuevo! Soy tu asistente KPA-Health del Hospital Susana López de Valencia E.S.E. ¿En qué puedo ayudarte hoy?</p>
+            </div>
+          </div>
+        `;
+        this.applyTechnicalView();
+        lucide.createIcons();
+        MediPulse.UI.toast('Historial del chat limpiado', 'info');
+      }
+    };
+
+    // MediPulse.AI.init() lo invoca MediPulse.Auth al abrir la sesión (requiere el permiso 'assistant')
+
+
+    // 4. VISTA 3: GESTIÓN DE INGRESOS (WIZARD RELACIONAL) — POST real a /api/patients
+    MediPulse.Wizard = {
+      step: 1,
+      submitting: false,
+
+      async prepare() {
+        await Promise.allSettled([this.loadDepartments(), this.loadDoctors()]);
+        await this.filterAvailableBeds();
+      },
+
+      nextStep() {
+        if (this.step === 1) {
+          const name = document.getElementById('wiz-name').value.trim();
+          const dni = document.getElementById('wiz-dni').value.trim();
+          if (!name || !dni) {
+            MediPulse.UI.toast('Complete el Nombre Completo y Documento', 'warning');
+            return;
+          }
+          this.setStep(2);
+        } else if (this.step === 2) {
+          const symptoms = document.getElementById('wiz-symptoms').value.trim();
+          if (!symptoms) {
+            MediPulse.UI.toast('Ingrese el motivo de consulta del paciente', 'warning');
+            return;
+          }
+          this.filterAvailableBeds();
+          this.setStep(3);
+        }
+      },
+
+      prevStep() {
+        if (this.step > 1) {
+          this.setStep(this.step - 1);
+        }
+      },
+
+      setStep(newStep) {
+        this.step = newStep;
+
+        document.querySelectorAll('.wizard-step').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`wizard-step-${newStep}`).classList.remove('hidden');
+
+        for (let i = 1; i <= 3; i++) {
+          const indicator = document.getElementById(`wizard-step-indicator-${i}`);
+          if (i === newStep) {
+            indicator.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-secondary text-white font-black text-xs sm:text-sm flex items-center justify-center ring-4 ring-tertiary-light shadow-md transition-all';
+            indicator.innerText = i;
+          } else if (i < newStep) {
+            indicator.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-emerald-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shadow transition-all';
+            indicator.innerHTML = '<i data-lucide="check" class="w-4 h-4 sm:w-5 sm:h-5"></i>';
+          } else {
+            indicator.className = 'w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-slate-200 text-slate-600 font-black text-xs sm:text-sm flex items-center justify-center ring-4 ring-white shadow transition-all';
+            indicator.innerText = i;
+          }
+        }
+
+        const progressLine = document.getElementById('wizard-progress-line');
+        if (newStep === 1) progressLine.style.width = '0%';
+        if (newStep === 2) progressLine.style.width = '50%';
+        if (newStep === 3) progressLine.style.width = '100%';
+
+        const btnPrev = document.getElementById('wizard-btn-prev');
+        const btnNext = document.getElementById('wizard-btn-next');
+        const btnSubmit = document.getElementById('wizard-btn-submit');
+
+        if (newStep === 1) {
+          btnPrev.disabled = true;
+          btnPrev.className = 'px-4 sm:px-5 py-2.5 rounded-xl border border-slate-300 text-slate-400 bg-slate-100 font-bold text-xs transition-all flex items-center gap-1.5 cursor-not-allowed';
+          btnNext.classList.remove('hidden');
+          btnSubmit.classList.add('hidden');
+        } else if (newStep === 2) {
+          btnPrev.disabled = false;
+          btnPrev.className = 'px-4 sm:px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer';
+          btnNext.classList.remove('hidden');
+          btnSubmit.classList.add('hidden');
+        } else if (newStep === 3) {
+          btnPrev.disabled = false;
+          btnPrev.className = 'px-4 sm:px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer';
+          btnNext.classList.add('hidden');
+          btnSubmit.classList.remove('hidden');
+        }
+
+        lucide.createIcons();
+      },
+
+      // Resalta visualmente el nivel de triaje seleccionado
+      bindTriageSelector() {
+        const radios = document.querySelectorAll('input[name="wiz-triage"]');
+        const paint = () => radios.forEach(radio => {
+          const label = radio.closest('label');
+          label.classList.toggle('border-secondary', radio.checked);
+          label.classList.toggle('bg-secondary/5', radio.checked);
+          label.classList.toggle('ring-2', radio.checked);
+          label.classList.toggle('ring-secondary/30', radio.checked);
+        });
+        radios.forEach(radio => radio.addEventListener('change', paint));
+        paint();
+      },
+
+      // Servicios reales (camas del hospital) con respaldo a la lista de config.js
+      async loadDepartments() {
+        const select = document.getElementById('wiz-department');
+        const previous = select.value;
+        let services = [];
+        try {
+          const wings = await MediPulse.RoomService.getAll();
+          if (wings.source === 'api') services = [...new Set(wings.map(w => w.floor))].sort();
+        } catch (error) { /* se mantiene la lista por defecto */ }
+        if (!services.length) services = MediPulse.Config.hospital.departments;
+        select.innerHTML = services.map(s => `<option value="${MediPulse.UI.escape(s)}">${MediPulse.UI.escape(s)}</option>`).join('');
+        select.value = services.includes(previous) ? previous : services[0];
+        select.onchange = () => this.filterAvailableBeds();
+      },
+
+      async loadDoctors() {
+        const select = document.getElementById('wiz-doctor');
+        try {
+          const doctors = await MediPulse.DoctorService.getAll();
+          if (!doctors.length) return;
+          const previous = select.value;
+          select.innerHTML = doctors.map(d =>
+            `<option value="${MediPulse.UI.escape(d.name)}" data-id="${MediPulse.UI.escape(d.id)}">${MediPulse.UI.escape(d.name)} - ${MediPulse.UI.escape(d.specialty || '')}</option>`
+          ).join('');
+          if ([...select.options].some(o => o.value === previous)) select.value = previous;
+        } catch (error) { /* se conservan las opciones estáticas */ }
+      },
+
+      async filterAvailableBeds() {
+        const bedSelect = document.getElementById('wiz-bed');
+        const department = document.getElementById('wiz-department').value;
+        const hint = document.getElementById('wiz-bed-hint');
+        bedSelect.innerHTML = '<option value="">Cargando camas libres…</option>';
+        try {
+          const { beds, filtered, source } = await MediPulse.RoomService.getFreeBeds(department);
+          bedSelect.innerHTML = '';
+          if (!beds.length) {
+            bedSelect.innerHTML = '<option value="">⚠️ No hay camas libres en este momento</option>';
+          } else {
+            const byWing = {};
+            beds.forEach(bed => { (byWing[bed.wing] = byWing[bed.wing] || []).push(bed); });
+            Object.entries(byWing).forEach(([wing, wingBeds]) => {
+              const group = document.createElement('optgroup');
+              group.label = wing;
+              wingBeds.forEach(bed => {
+                const opt = document.createElement('option');
+                opt.value = bed.id;
+                opt.setAttribute('data-code', bed.code);
+                opt.innerText = `${bed.code} (${bed.service || wing})`;
+                group.appendChild(opt);
+              });
+              bedSelect.appendChild(group);
+            });
+          }
+          if (hint) {
+            hint.textContent = `${beds.length} camas libres${filtered ? ` en ${department}` : ' (todas las áreas)'}${source === 'mock' ? ' · datos simulados' : ' · en vivo'}`;
+          }
+        } catch (error) {
+          bedSelect.innerHTML = '<option value="">⚠️ No se pudieron cargar las camas</option>';
+          MediPulse.UI.toast(`No se pudieron cargar las camas: ${error.message}`, 'error');
+        }
+      },
+
+      async submit() {
+        if (this.submitting) return;
+        const bedSelect = document.getElementById('wiz-bed');
+        const selectedBedId = bedSelect.value;
+        const selectedBedCode = bedSelect.options[bedSelect.selectedIndex]?.getAttribute('data-code') || 'Cama Asignada';
+
+        if (!selectedBedId) {
+          MediPulse.UI.toast('Seleccione una cama disponible para continuar', 'error');
+          return;
+        }
+
+        const selectedTriageRadio = document.querySelector('input[name="wiz-triage"]:checked');
+        const triageLevel = selectedTriageRadio ? parseInt(selectedTriageRadio.value, 10) : 3;
+        const doctorSelect = document.getElementById('wiz-doctor');
+        const doctorOption = doctorSelect.options[doctorSelect.selectedIndex];
+
+        // Los datos personales viajan solo en esta petición: el backend no guarda el nombre
+        // (usa un seudónimo) y guarda el documento únicamente como hash.
+        const payload = {
+          name: document.getElementById('wiz-name').value.trim(),
+          dni: document.getElementById('wiz-dni').value.trim(),
+          age: parseInt(document.getElementById('wiz-age').value, 10) || 30,
+          gender: document.getElementById('wiz-gender').value,
+          bloodType: document.getElementById('wiz-blood').value,
+          allergies: document.getElementById('wiz-allergies').value || 'Ninguna',
+          triageLevel: triageLevel,
+          vitals: {
+            bp: document.getElementById('wiz-bp').value,
+            hr: document.getElementById('wiz-hr').value + ' lpm',
+            temp: document.getElementById('wiz-temp').value + '°C',
+            spo2: document.getElementById('wiz-spo2').value + '%'
+          },
+          symptoms: document.getElementById('wiz-symptoms').value,
+          department: document.getElementById('wiz-department').value,
+          roomNumber: selectedBedCode,
+          bedId: selectedBedId,
+          doctorName: doctorSelect.value,
+          doctorAssignedId: doctorOption ? doctorOption.getAttribute('data-id') : null,
+          status: document.getElementById('wiz-status').value,
+          diagnosis: document.getElementById('wiz-diagnosis').value.trim()
+        };
+
+        const submitBtn = document.getElementById('wizard-btn-submit');
+        this.submitting = true;
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-60');
+        try {
+          const patient = await MediPulse.PatientService.create(payload);
+          const safe = MediPulse.Privacy.maskPatient(patient);
+          MediPulse.UI.toast(`¡Ingreso registrado! ${safe.name} asignado a ${patient.roomNumber || selectedBedCode}`, 'success');
+          if (MediPulse.ApiClient.status === 'fallback' || MediPulse.ApiClient.status === 'mock') {
+            MediPulse.UI.toast('Guardado en modo respaldo local: no se envió a hospital.db', 'warning');
+          }
+          this.reset();
+          MediPulse.Navigation.switchView('view-bi');  // el dashboard se recalcula con el nuevo ingreso
+        } catch (error) {
+          MediPulse.UI.toast(`No se pudo registrar el ingreso: ${error.message}`, 'error');
+          if (error.status === 409 || error.status === 404) this.filterAvailableBeds();
+        } finally {
+          this.submitting = false;
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-60');
+        }
+      },
+
+      reset() {
+        document.getElementById('wizard-admission-form').reset();
+        this.setStep(1);
+        document.querySelectorAll('input[name="wiz-triage"]').forEach(r => r.dispatchEvent(new Event('change')));
+      }
+    };
+
+    // 5. LÓGICA PARA GESTIÓN Y SUBIDA DE DATOS (ETL real contra hospital.db)
+    MediPulse.DataSync = {
+      handleFileSelect(input, labelId) {
+        const label = document.getElementById(labelId);
+        if (input.files && input.files.length > 0) {
+          const fileName = input.files[0].name;
+          label.innerHTML = `<span class="text-primary font-bold"><i data-lucide="file-text" class="w-3 h-3 inline mr-1"></i>${MediPulse.UI.escape(fileName)}</span>`;
+          lucide.createIcons();
+        } else {
+          label.innerText = 'Ningún archivo nuevo seleccionado';
+        }
+      },
+
+      async refreshCounts() {
+        const badge = document.getElementById('db-sync-badge');
+        try {
+          const status = await MediPulse.DataService.getStatus();
+          const online = status.source === 'api' && status.rowCounts;
+          Object.entries(MediPulse.DataService.tables).forEach(([type, table]) => {
+            setText(`count-${type}`, online ? `${fmtNumber(status.rowCounts[table])} registros en BD` : 'Sin conexión con la BD');
+          });
+          badge.innerHTML = online
+            ? `<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> DB sincronizada · datos al ${fmtDate((status.referenceDatetime || '').slice(0, 10))}`
+            : '<span class="w-2 h-2 rounded-full bg-amber-500"></span> Backend no disponible';
+          badge.className = `px-3 py-1.5 rounded-lg border text-xs font-bold flex items-center gap-2 shrink-0 ${online ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`;
+        } catch (error) {
+          badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-500"></span> Sin conexión';
+        }
+      },
+
+      async uploadFile(type) {
+        const input = document.getElementById(`file-${type}`);
+        const label = document.getElementById(`label-${type}`);
+
+        if (!input.files || input.files.length === 0) {
+          MediPulse.UI.toast('Por favor, selecciona un archivo .txt primero', 'warning');
+          return;
+        }
+
+        const file = input.files[0];
+        const button = document.querySelector(`[data-upload="${type}"]`);
+        if (button) { button.disabled = true; button.classList.add('opacity-60'); }
+        label.innerHTML = '<span class="text-secondary font-bold">Procesando…</span>';
+        MediPulse.UI.toast(`Procesando e inyectando datos de ${file.name}...`, 'info');
+
+        try {
+          const result = await MediPulse.DataService.upload(type, file);
+          const d = result.data || {};
+          label.innerHTML = `<span class="text-emerald-700 font-bold">✔ ${fmtNumber(d.rowsRead)} leídos · ${fmtNumber(d.rowsInserted)} nuevos · ${fmtNumber(d.rowsUpdatedOrSkipped)} actualizados</span>`;
+          MediPulse.UI.toast(result.message || `¡Base de datos de ${type} actualizada con éxito!`, 'success');
+          MediPulse.UI.toast('Dashboards sincronizados con la nueva data.', 'info');
+          await this.refreshCounts();
+        } catch (error) {
+          const missing = error.detail && error.detail.missingColumns;
+          const detail = missing ? ` Faltan columnas: ${missing.join(', ')}` : '';
+          label.innerHTML = `<span class="text-rose-600 font-bold">✖ ${MediPulse.UI.escape(error.message)}</span>`;
+          MediPulse.UI.toast(`No se pudo cargar ${file.name}: ${error.message}.${detail}`, 'error');
+        } finally {
+          input.value = '';
+          if (button) { button.disabled = false; button.classList.remove('opacity-60'); }
+        }
+      }
+    };
+
+    // 6. COMPONENTES UI: TOASTS, ESTADO DE LA API & ACCESIBILIDAD
+    MediPulse.UI = {
+      escape(value) {
+        return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      },
+
+      toast(msg, type = 'success') {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        const colors = {
+          success: 'bg-emerald-800 text-white border-emerald-600',
+          error: 'bg-rose-800 text-white border-rose-600',
+          info: 'bg-primary text-white border-tertiary',
+          warning: 'bg-amber-800 text-white border-amber-600'
+        };
+        const icons = {
+          success: 'check-circle-2',
+          error: 'alert-circle',
+          info: 'info',
+          warning: 'alert-triangle'
+        };
+
+        el.className = `flex items-center space-x-2.5 px-4 py-3 rounded-xl border shadow-xl ${colors[type] || colors.info} transform transition-all duration-300 pointer-events-auto text-xs font-semibold translate-y-3 opacity-0`;
+        el.innerHTML = `
+          <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i>
+          <span class="flex-1">${this.escape(msg)}</span>
+        `;
+        container.appendChild(el);
+        lucide.createIcons();
+
+        requestAnimationFrame(() => {
+          el.classList.remove('translate-y-3', 'opacity-0');
+        });
+
+        setTimeout(() => {
+          el.classList.add('opacity-0', 'translate-x-4');
+          setTimeout(() => el.remove(), 300);
+        }, 3600);
+      },
+
+      describeApiStatus(status, reason) {
+        const labels = {
+          online: 'Conectado a la API REST real (hospital.db)',
+          fallback: `Modo respaldo con mockData.js${reason ? ` · ${reason}` : ''}`,
+          mock: 'Modo simulación forzado (mockData.js)',
+          offline: `Sin conexión con el backend${reason ? ` · ${reason}` : ''}`,
+          unknown: 'Comprobando conexión…'
+        };
+        return labels[status] || labels.unknown;
+      },
+
+      // Indicador de conexión del encabezado (verde = real, ámbar = respaldo, azul = simulación)
+      setApiStatus(status, reason = '') {
+        const styles = {
+          online: { pill: 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100', dot: 'bg-emerald-500', ping: 'bg-emerald-400', text: 'API Conectada (REST Real)' },
+          fallback: { pill: 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100', dot: 'bg-amber-500', ping: 'bg-amber-400', text: 'Modo Respaldo (Mock)' },
+          mock: { pill: 'bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100', dot: 'bg-blue-500', ping: 'bg-blue-400', text: 'Modo Simulación (Mock)' },
+          offline: { pill: 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100', dot: 'bg-rose-500', ping: 'bg-rose-400', text: 'Sin Conexión' },
+          unknown: { pill: 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100', dot: 'bg-slate-400', ping: 'bg-slate-300', text: 'Conectando…' }
+        };
+        const s = styles[status] || styles.unknown;
+        const pill = document.getElementById('api-status-pill');
+        if (pill) pill.className = `flex items-center space-x-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${s.pill}`;
+        const dot = document.getElementById('api-status-dot');
+        if (dot) dot.className = `relative inline-flex rounded-full h-2 w-2 ${s.dot}`;
+        const ping = document.getElementById('api-status-ping');
+        if (ping) ping.className = `api-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${s.ping}`;
+        setText('api-status-text', s.text);
+        if (pill) pill.title = this.describeApiStatus(status, reason);
+
+        if (status === 'fallback' && this.lastStatus !== 'fallback') {
+          this.toast('Backend no disponible o sin datos: usando datos simulados (mockData.js)', 'warning');
+        } else if (status === 'online' && this.lastStatus === 'fallback') {
+          this.toast('Conexión con el backend restablecida', 'success');
+        }
+        this.lastStatus = status;
+      }
+    };
+
+    // Inicializador del Widget de Accesibilidad
+    (function setupAccessibility() {
+      const btnAccess = document.getElementById('btn-accessibility');
+      const menuAccess = document.getElementById('accessibility-menu');
+      const btnReset = document.getElementById('btn-reset-accessibility');
+      const btnContrast = document.getElementById('btn-toggle-contrast');
+      const contrastKnob = document.getElementById('contrast-slider-knob');
+      const btnDyslexia = document.getElementById('btn-toggle-dyslexia');
+      const dyslexiaKnob = document.getElementById('dyslexia-slider-knob');
+      const fontButtons = document.querySelectorAll('.btn-font-size');
+
+      btnAccess.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuAccess.classList.toggle('hidden');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!document.getElementById('accessibility-dropdown-container').contains(e.target)) {
+          menuAccess.classList.add('hidden');
+        }
+      });
+
+      const sizes = { sm: 'font-size-sm', md: 'font-size-md', lg: 'font-size-lg', xl: 'font-size-xl' };
+      fontButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const sz = btn.getAttribute('data-size');
+          Object.values(sizes).forEach(c => document.documentElement.classList.remove(c));
+          if (sz !== 'md') document.documentElement.classList.add(sizes[sz]);
+
+          fontButtons.forEach(b => {
+            b.classList.remove('bg-secondary', 'text-white');
+            b.classList.add('hover:border-secondary');
+          });
+          btn.classList.add('bg-secondary', 'text-white');
+          btn.classList.remove('hover:border-secondary');
+          localStorage.setItem('medipulse_font_size', sz);
+        });
+      });
+
+      let highContrast = localStorage.getItem('medipulse_contrast') === 'true';
+      function applyContrast(state) {
+        highContrast = state;
+        if (state) {
+          document.documentElement.classList.add('high-contrast-mode');
+          btnContrast.classList.remove('bg-slate-200');
+          btnContrast.classList.add('bg-secondary');
+          contrastKnob.classList.add('translate-x-5');
+        } else {
+          document.documentElement.classList.remove('high-contrast-mode');
+          btnContrast.classList.add('bg-slate-200');
+          btnContrast.classList.remove('bg-secondary');
+          contrastKnob.classList.remove('translate-x-5');
+        }
+        localStorage.setItem('medipulse_contrast', state);
+      }
+      btnContrast.addEventListener('click', () => applyContrast(!highContrast));
+      if (highContrast) applyContrast(true);
+
+      let dyslexia = localStorage.getItem('medipulse_dyslexia') === 'true';
+      function applyDyslexia(state) {
+        dyslexia = state;
+        if (state) {
+          document.body.classList.add('dyslexia-font');
+          btnDyslexia.classList.remove('bg-slate-200');
+          btnDyslexia.classList.add('bg-secondary');
+          dyslexiaKnob.classList.add('translate-x-5');
+        } else {
+          document.body.classList.remove('dyslexia-font');
+          btnDyslexia.classList.add('bg-slate-200');
+          btnDyslexia.classList.remove('bg-secondary');
+          dyslexiaKnob.classList.remove('translate-x-5');
+        }
+        localStorage.setItem('medipulse_dyslexia', state);
+      }
+      btnDyslexia.addEventListener('click', () => applyDyslexia(!dyslexia));
+      if (dyslexia) applyDyslexia(true);
+
+      btnReset.addEventListener('click', () => {
+        applyContrast(false);
+        applyDyslexia(false);
+        Object.values(sizes).forEach(c => document.documentElement.classList.remove(c));
+        localStorage.removeItem('medipulse_font_size');
+        MediPulse.UI.toast('Accesibilidad restablecida', 'info');
+      });
+    })();
+
+
+    // 8. SESIÓN Y ROLES (login JWT). Solo tras autenticar se cargan datos y vistas.
+    MediPulse.Auth = {
+      started: false,
+
+      async init() {
+        let config = null;
+        try {
+          config = await MediPulse.AuthService.config();
+        } catch (error) {
+          if (MediPulse.Config.useMock) return this.enter(MediPulse.AuthService.startDemoSession());
+          return this.showLogin(error.network ? 'No hay conexión con el servidor. Puede continuar en modo demostración.' : error.message, error.network);
+        }
+        if (!config.authEnabled) return this.enter(MediPulse.AuthService.anonymousAdmin(config.roles));
+        try {
+          const user = await MediPulse.AuthService.restore();
+          if (user) return this.enter(user);
+        } catch (error) {
+          MediPulse.AuthService.clear();
+        }
+        this.showLogin();
+      },
+
+      showLogin(message = '', offline = false) {
+        document.getElementById('login-screen').classList.remove('hidden');
+        const error = document.getElementById('login-error');
+        error.textContent = message;
+        error.classList.toggle('hidden', !message);
+        document.getElementById('login-demo').classList.toggle('hidden', !offline);
+        setTimeout(() => document.getElementById('login-username').focus(), 50);
+        lucide.createIcons();
+      },
+
+      async submit(event) {
+        event.preventDefault();
+        const button = document.getElementById('login-submit');
+        const username = document.getElementById('login-username').value.trim();
+        const password = document.getElementById('login-password').value;
+        button.disabled = true;
+        button.classList.add('opacity-60');
+        try {
+          const user = await MediPulse.AuthService.login(username, password);
+          document.getElementById('login-password').value = '';
+          this.enter(user);
+          MediPulse.UI.toast(`Bienvenido(a), ${user.name}`, 'success');
+        } catch (error) {
+          this.showLogin(error.message, Boolean(error.network));
+        } finally {
+          button.disabled = false;
+          button.classList.remove('opacity-60');
+        }
+      },
+
+      enterDemo() {
+        this.enter(MediPulse.AuthService.startDemoSession());
+        MediPulse.UI.toast('Modo demostración: datos simulados, sin conexión al hospital', 'warning');
+      },
+
+      // Oculta del DOM visible todo lo que el rol no puede usar
+      applyPermissions() {
+        document.querySelectorAll('[data-perm]').forEach(el => {
+          el.classList.toggle('hidden', !MediPulse.AuthService.can(el.dataset.perm));
+        });
+        const session = MediPulse.AuthService.session || {};
+        const name = session.name || '—';
+        setText('session-user-name', name);
+        setText('session-user-role', `${session.roleLabel || session.role || ''}${session.demo ? ' · sin conexión' : ''}${session.open ? ' · sin login' : ''}`);
+        setText('session-user-initials', name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '—');
+        document.getElementById('btn-logout').classList.toggle('hidden', Boolean(session.open));
+      },
+
+      enter(user) {
+        document.getElementById('login-screen').classList.add('hidden');
+        this.applyPermissions();
+        if (!this.started) {
+          this.started = true;
+          if (MediPulse.AuthService.can('assistant')) MediPulse.AI.init();
+          MediPulse.BI.startAutoRefresh();
+        }
+        MediPulse.Navigation.switchView(MediPulse.Navigation.firstAllowedView());
+        lucide.createIcons();
+        return user;
+      },
+
+      logout() {
+        MediPulse.AuthService.logout();
+      },
+
+      // Token vencido o revocado: se vuelve al login sin perder la página
+      onUnauthorized(message) {
+        if (!MediPulse.AuthService.session || MediPulse.AuthService.session.open || MediPulse.AuthService.session.demo) return;
+        MediPulse.AuthService.clear();
+        this.started = false;
+        clearInterval(MediPulse.BI.refreshTimer);
+        this.showLogin(message || 'Su sesión terminó. Inicie sesión de nuevo');
+      }
+    };
+
+    // 7. BOOTSTRAP DE LA APLICACIÓN AL CARGAR EL DOM
+    document.addEventListener('DOMContentLoaded', () => {
+      MediPulse.MockData.initialize();
+      window.addEventListener('medipulse:api-status', event => {
+        MediPulse.UI.setApiStatus(event.detail.status, event.detail.reason);
+      });
+      MediPulse.UI.setApiStatus(MediPulse.Config.useMock ? 'mock' : 'unknown');
+      MediPulse.Wizard.bindTriageSelector();
+
+      // Control del Sidebar en Escritorio
+      const sidebar = document.getElementById('app-sidebar');
+      const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+      const toggleIcon = document.getElementById('sidebar-toggle-icon');
+
+      btnToggleSidebar.addEventListener('click', () => {
+        const isCollapsed = sidebar.classList.contains('md:w-20');
+        if (isCollapsed) {
+          sidebar.classList.remove('md:w-20');
+          sidebar.classList.add('md:w-64');
+          toggleIcon.classList.remove('rotate-180');
+          document.querySelectorAll('.sidebar-text-content').forEach(el => el.classList.remove('hidden'));
+        } else {
+          sidebar.classList.remove('md:w-64');
+          sidebar.classList.add('md:w-20');
+          toggleIcon.classList.add('rotate-180');
+          document.querySelectorAll('.sidebar-text-content').forEach(el => el.classList.add('hidden'));
+        }
+      });
+
+      // Apertura y Cierre Móvil Off-Canvas
+      document.getElementById('btn-open-mobile-sidebar').addEventListener('click', () => {
+        MediPulse.Navigation.openMobileDrawer();
+      });
+      document.getElementById('btn-close-mobile-sidebar').addEventListener('click', () => {
+        MediPulse.Navigation.closeMobileDrawer();
+      });
+      document.getElementById('mobile-sidebar-overlay').addEventListener('click', () => {
+        MediPulse.Navigation.closeMobileDrawer();
+      });
+
+      // Sesión: login JWT y permisos por rol; al autenticar se abre la primera vista permitida
+      window.addEventListener('medipulse:unauthorized', event => MediPulse.Auth.onUnauthorized(event.detail && event.detail.message));
+      MediPulse.Auth.init();
+
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

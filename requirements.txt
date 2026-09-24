@@ -1,0 +1,23 @@
+# Dependencias completas para desarrollo y pruebas locales (Python 3.11 o 3.12)
+# Instalar con:  pip install -r requirements.txt
+
+# --- API REST ---
+fastapi==0.141.1
+uvicorn==0.53.0
+python-multipart==0.0.32
+pydantic==2.13.5
+python-dotenv==1.2.3
+PyJWT==2.15.0
+
+# --- Datos / ETL ---
+pandas==3.0.6
+
+# --- Asistente IA (NL2SQL) ---
+httpx==0.28.1
+sqlglot==30.19.0
+
+# --- Voz a texto 100 % local (opcional: si no se instala, el micrófono informa que no está disponible) ---
+faster-whisper==1.2.1
+
+# --- Pruebas ---
+pytest==9.1.1

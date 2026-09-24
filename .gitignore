@@ -1,6 +1,77 @@
-hospital.db
+# =============================================================================
+# KPA-Health · Hospital Susana López de Valencia — .gitignore
+# =============================================================================
+
+# ---- Secretos y credenciales (NUNCA subir) -----------------------------------
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Base de datos generada (se reconstruye con: python setup_db.py) ---------
+hospital.db
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# ---- Entornos virtuales -------------------------------------------------------
 .venv/
+venv/
+env/
+ENV/
+.virtualenvs/
+
+# ---- Python -------------------------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# ---- Pruebas y cobertura ------------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ---- Modelos de IA descargados localmente (Whisper / Hugging Face) ------------
+models/
+.cache/
+*.gguf
+*.bin
+*.safetensors
+
+# ---- Logs y temporales --------------------------------------------------------
 *.log
+logs/
+tmp/
+*.tmp
+*.bak
+
+# ---- Editores / IDE -----------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Sistema operativo --------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Frontend (por si se agregan herramientas de build) -----------------------
+node_modules/
+
+# ---- Herramientas locales -----------------------------------------------------
+graphify-out/

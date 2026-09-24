@@ -1,62 +1,78 @@
-import pandas as pd
-import sqlite3
+"""
+Script ETL: construye hospital.db a partir de los archivos planos de data/.
+
+Uso:
+    python setup_db.py
+
+Las funciones de este módulo (esquema, orden de carga y limpieza con Pandas) son
+la única fuente de verdad del ETL: el backend las reutiliza en
+POST /api/upload/{type} para que una carga incremental aplique exactamente la
+misma limpieza que la carga inicial.
+"""
 import os
+import sqlite3
+from functools import lru_cache
 
-# 1. Conectar a la base de datos (crea el archivo hospital.db)
-conn = sqlite3.connect('hospital.db')
-cursor = conn.cursor()
+import pandas as pd
 
-print("1. Construyendo la arquitectura relacional (Tablas y Llaves)...")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, 'hospital.db')
+DATA_DIR = os.path.join(BASE_DIR, 'data')
 
-# Borrar tablas si ya existen para empezar en limpio
-tablas = ['ProgramacionCirugia', 'Servicios', 'MedicamentoInsumo', 'Atencion', 'Ingresos', 'Triage', 'Paciente']
-for t in tablas:
-    cursor.execute(f"DROP TABLE IF EXISTS {t}")
+# Tablas del HIS en orden estricto de inserción:
+# no se puede insertar un Ingreso si el Paciente no existe primero.
+LOAD_ORDER = [
+    'Paciente', 'Triage', 'Ingresos',
+    'Atencion', 'MedicamentoInsumo', 'Servicios', 'ProgramacionCirugia'
+]
 
-# 2. CREACIÓN DE TABLAS (Esquema estricto para que la IA entienda las relaciones)
-esquema_sql = """
+MISSING_TEXT_TOKENS = ['nan', 'NaN', 'None', '', 'NaT']
+MISSING_TEXT_VALUE = 'No Registrado'
+
+# Esquema estricto para que la IA entienda las relaciones
+SCHEMA_SQL = """
 CREATE TABLE Paciente (
     IdPaciente INTEGER PRIMARY KEY,
-    TipoDocumento TEXT, 
-    NombrePaciente TEXT, 
-    FechaNacimiento DATE, 
-    Sexo TEXT, 
-    Asegurador TEXT, 
-    Regimen TEXT, 
-    Departamento TEXT, 
-    Municipio TEXT, 
+    TipoDocumento TEXT,
+    NombrePaciente TEXT,
+    FechaNacimiento DATE,
+    Sexo TEXT,
+    Asegurador TEXT,
+    Regimen TEXT,
+    Departamento TEXT,
+    Municipio TEXT,
     Zona TEXT
 );
 
 CREATE TABLE Triage (
     OidTriage INTEGER PRIMARY KEY,
-    FechaTriage DATETIME, 
-    MotivoConsulta TEXT, 
-    TensionArterial TEXT, 
-    FrecuenciaCardiaca TEXT, 
-    FrecuenciaRespiratoria TEXT, 
-    Temperatura TEXT, 
-    IdPaciente2 INTEGER, 
-    CodigoTriage TEXT, 
+    FechaTriage DATETIME,
+    MotivoConsulta TEXT,
+    TensionArterial TEXT,
+    FrecuenciaCardiaca TEXT,
+    FrecuenciaRespiratoria TEXT,
+    Temperatura TEXT,
+    IdPaciente2 INTEGER,
+    CodigoTriage TEXT,
     ClasificacionTriage TEXT,
     FOREIGN KEY(IdPaciente2) REFERENCES Paciente(IdPaciente)
 );
 
 CREATE TABLE Ingresos (
     OidIngreso INTEGER PRIMARY KEY,
-    ConsecutivoIngreso TEXT, 
-    IdPaciente INTEGER, 
-    ClaseIngreso TEXT, 
-    ViaIngreso TEXT, 
-    TipoRiesgo TEXT, 
-    FechaIngreso DATETIME, 
-    FechaHospitalizacion DATETIME, 
-    OidTriageA INTEGER, 
-    CodigoCama TEXT, 
-    NombreCama TEXT, 
-    NombreGrupoCama TEXT, 
-    NombreSubgrupoCama TEXT, 
-    CodigoDiagnostico TEXT, 
+    ConsecutivoIngreso TEXT,
+    IdPaciente INTEGER,
+    ClaseIngreso TEXT,
+    ViaIngreso TEXT,
+    TipoRiesgo TEXT,
+    FechaIngreso DATETIME,
+    FechaHospitalizacion DATETIME,
+    OidTriageA INTEGER,
+    CodigoCama TEXT,
+    NombreCama TEXT,
+    NombreGrupoCama TEXT,
+    NombreSubgrupoCama TEXT,
+    CodigoDiagnostico TEXT,
     NombreDiagnostico TEXT,
     FOREIGN KEY(IdPaciente) REFERENCES Paciente(IdPaciente),
     FOREIGN KEY(OidTriageA) REFERENCES Triage(OidTriage)
@@ -64,16 +80,16 @@ CREATE TABLE Ingresos (
 
 CREATE TABLE Atencion (
     IdAtencion INTEGER PRIMARY KEY AUTOINCREMENT,
-    OidIngreso INTEGER, 
+    OidIngreso INTEGER,
     FechaAtencion DATETIME,
     FOREIGN KEY(OidIngreso) REFERENCES Ingresos(OidIngreso)
 );
 
 CREATE TABLE ProgramacionCirugia (
     IdProgramacion INTEGER PRIMARY KEY AUTOINCREMENT,
-    ConsecutivoProgramacion TEXT, 
-    IdPaciente INTEGER, 
-    OidIngreso INTEGER, 
+    ConsecutivoProgramacion TEXT,
+    IdPaciente INTEGER,
+    OidIngreso INTEGER,
     CodigoServicio TEXT,
     FOREIGN KEY(IdPaciente) REFERENCES Paciente(IdPaciente),
     FOREIGN KEY(OidIngreso) REFERENCES Ingresos(OidIngreso)
@@ -81,25 +97,25 @@ CREATE TABLE ProgramacionCirugia (
 
 CREATE TABLE Servicios (
     OidS INTEGER PRIMARY KEY,
-    OidIngreso INTEGER, 
-    CodigoServicio TEXT, 
-    NombreServicio TEXT, 
-    Cantidad REAL, 
-    FechaPrestacion DATETIME, 
-    CodigoAreaServicio TEXT, 
-    AreaServicio TEXT, 
+    OidIngreso INTEGER,
+    CodigoServicio TEXT,
+    NombreServicio TEXT,
+    Cantidad REAL,
+    FechaPrestacion DATETIME,
+    CodigoAreaServicio TEXT,
+    AreaServicio TEXT,
     Especialidad TEXT,
     FOREIGN KEY(OidIngreso) REFERENCES Ingresos(OidIngreso)
 );
 
 CREATE TABLE MedicamentoInsumo (
     OidMI INTEGER PRIMARY KEY,
-    OidIngreso INTEGER, 
-    CodigoServicio TEXT, 
-    NombreServicio TEXT, 
-    Cantidad REAL, 
-    FechaPrestacion DATETIME, 
-    AreaServicio TEXT, 
+    OidIngreso INTEGER,
+    CodigoServicio TEXT,
+    NombreServicio TEXT,
+    Cantidad REAL,
+    FechaPrestacion DATETIME,
+    AreaServicio TEXT,
     Especialidad TEXT,
     FOREIGN KEY(OidIngreso) REFERENCES Ingresos(OidIngreso)
 );
@@ -118,54 +134,104 @@ CREATE INDEX idx_medicamentos_ingreso ON MedicamentoInsumo(OidIngreso);
 CREATE INDEX idx_ingresos_fecha ON Ingresos(FechaIngreso);
 CREATE INDEX idx_triage_fecha ON Triage(FechaTriage);
 """
-# Ejecutar la creación de la estructura
-cursor.executescript(esquema_sql)
-conn.commit()
 
-# 3. ORDEN ESTRICTO DE INSERCIÓN
-# ¡Muy importante! No podemos insertar un Ingreso si el Paciente no existe primero.
-orden_archivos = [
-    'Paciente', 'Triage', 'Ingresos', 
-    'Atencion', 'MedicamentoInsumo', 'Servicios', 'ProgramacionCirugia'
-]
 
-print("\n2. Iniciando limpieza e inyección de datos...")
+TEXT_DECLARED_TYPES = ('TEXT', 'DATE', 'DATETIME')
 
-for archivo in orden_archivos:
-    ruta = f'data/{archivo}.txt'
-    if not os.path.exists(ruta):
-        print(f"⚠️ Archivo no encontrado: {ruta}")
-        continue
-        
-    print(f"-> Procesando e inyectando: {archivo}...")
-    
-    # Leer el archivo txt
-    df = pd.read_csv(ruta, sep='|', encoding='utf-8', low_memory=False)
-    
-    # Limpieza estándar
+
+@lru_cache(maxsize=None)
+def declared_types(table_name: str) -> dict[str, str]:
+    """Tipo declarado en SCHEMA_SQL para cada columna de la tabla (TEXT, INTEGER, DATETIME...)."""
+    conn = sqlite3.connect(':memory:')
+    try:
+        conn.executescript(SCHEMA_SQL)
+        rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    finally:
+        conn.close()
+    return {row[1]: (row[2] or '').upper() for row in rows}
+
+
+def is_text_column(series: pd.Series, declared_type: str = '') -> bool:
+    """
+    True si la columna es de texto: por su tipo en pandas 2 (object) o pandas 3 (str),
+    o por el tipo declarado en el esquema (cubre columnas de texto que llegan
+    completamente vacías y pandas infiere como numéricas).
+    """
+    return (
+        declared_type in TEXT_DECLARED_TYPES
+        or pd.api.types.is_object_dtype(series)
+        or pd.api.types.is_string_dtype(series)
+    )
+
+
+def read_source_file(source) -> pd.DataFrame:
+    """Lee un archivo plano del HIS (separado por '|'). Acepta ruta o buffer binario."""
+    return pd.read_csv(source, sep='|', encoding='utf-8', low_memory=False)
+
+
+def clean_dataframe(df: pd.DataFrame, table_name: str) -> pd.DataFrame:
+    """Limpieza estándar + reglas específicas por tabla. Devuelve un DataFrame nuevo."""
+    df = df.copy()
     df.columns = df.columns.str.strip()
-    df.drop_duplicates(inplace=True)
-    
+    df = df.drop_duplicates()
+    types = declared_types(table_name)
+
     for col in df.columns:
-        if df[col].dtype == 'object':
-            df[col] = df[col].astype(str).str.strip()
-            df[col] = df[col].replace(['nan', 'NaN', 'None', '', 'NaT'], 'No Registrado')
+        if is_text_column(df[col], types.get(col, '')):
+            # fillna explícito: en pandas 3 astype(str) conserva los NaN
+            df[col] = df[col].fillna(MISSING_TEXT_VALUE).astype(str).str.strip()
+            df[col] = df[col].replace(MISSING_TEXT_TOKENS, MISSING_TEXT_VALUE)
         else:
             df[col] = df[col].fillna(0)
 
     # Limpieza específica
-    if archivo == 'Paciente':
+    if table_name == 'Paciente':
+        # Anonimización: el nombre real nunca entra a la base de datos
         df['NombrePaciente'] = 'Paciente_' + df['IdPaciente'].astype(str)
         df['FechaNacimiento'] = pd.to_datetime(df['FechaNacimiento'], errors='coerce')
-    elif archivo == 'Ingresos':
+    elif table_name == 'Ingresos':
         df['FechaIngreso'] = pd.to_datetime(df['FechaIngreso'], errors='coerce')
         df['FechaHospitalizacion'] = pd.to_datetime(df['FechaHospitalizacion'], errors='coerce')
 
-    # INSERTAR DATOS EN LA TABLA YA ESTRUCTURADA
-    # Usamos if_exists='append' para que Pandas agregue los datos a la tabla relacional que creamos arriba, en lugar de borrarla.
-    df.to_sql(archivo, conn, if_exists='append', index=False)
-    
-    print(f"   ✔️ {len(df)} registros insertados exitosamente.")
+    return df
 
-conn.close()
-print("\n¡Operación exitosa! Base de datos relacional creada y limpia.")
+
+def create_schema(conn: sqlite3.Connection) -> None:
+    """Borra las tablas del HIS (si existen) y crea el esquema relacional limpio."""
+    cursor = conn.cursor()
+    for table in reversed(LOAD_ORDER):
+        cursor.execute(f"DROP TABLE IF EXISTS {table}")
+    cursor.executescript(SCHEMA_SQL)
+    conn.commit()
+
+
+def load_all(conn: sqlite3.Connection, data_dir: str = DATA_DIR) -> None:
+    """Lee, limpia e inserta cada archivo de data/ en su tabla ya estructurada."""
+    for table in LOAD_ORDER:
+        path = os.path.join(data_dir, f'{table}.txt')
+        if not os.path.exists(path):
+            print(f"⚠️ Archivo no encontrado: {path}")
+            continue
+
+        print(f"-> Procesando e inyectando: {table}...")
+        df = clean_dataframe(read_source_file(path), table)
+        # if_exists='append' para respetar la tabla relacional creada arriba
+        df.to_sql(table, conn, if_exists='append', index=False)
+        print(f"   ✔️ {len(df)} registros insertados exitosamente.")
+
+
+def main() -> None:
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        print("1. Construyendo la arquitectura relacional (Tablas y Llaves)...")
+        create_schema(conn)
+        print("\n2. Iniciando limpieza e inyección de datos...")
+        load_all(conn)
+    finally:
+        conn.close()
+    print("\n¡Operación exitosa! Base de datos relacional creada y limpia.")
+    print("La capa semántica (vistas y tablas derivadas) la construye el backend al arrancar.")
+
+
+if __name__ == '__main__':
+    main()
