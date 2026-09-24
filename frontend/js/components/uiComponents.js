@@ -119,7 +119,7 @@ MediPulse.UI = {
     const labels = {
       online: 'Conectado a la API REST real (hospital.db)',
       fallback: `Modo respaldo con mockData.js${reason ? ` · ${reason}` : ''}`,
-      mock: 'Modo simulación forzado (mockData.js)',
+      mock: 'Modo respaldo forzado (copia de la BD en mockData.js)',
       offline: `Sin conexión con el backend${reason ? ` · ${reason}` : ''}`,
       unknown: 'Comprobando conexión…'
     };
@@ -146,7 +146,7 @@ MediPulse.UI = {
     if (pill) pill.title = this.describeApiStatus(status, reason);
 
     if (status === 'fallback' && this.lastStatus !== 'fallback') {
-      this.toast('Backend no disponible o sin datos: usando datos simulados (mockData.js)', 'warning');
+      this.toast('Backend no disponible o sin datos: usando la última copia de la base de datos (mockData.js)', 'warning');
     } else if (status === 'online' && this.lastStatus === 'fallback') {
       this.toast('Conexión con el backend restablecida', 'success');
     }

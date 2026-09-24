@@ -59,7 +59,7 @@ MediPulse.Auth = {
 
   enterDemo() {
     this.enter(MediPulse.AuthService.startDemoSession());
-    MediPulse.UI.toast('Modo demostración: datos simulados, sin conexión al hospital', 'warning');
+    MediPulse.UI.toast('Modo demostración: última copia de la base de datos, sin conexión al hospital', 'warning');
   },
 
   // Oculta del DOM visible todo lo que el rol no puede usar

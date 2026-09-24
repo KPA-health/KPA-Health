@@ -87,7 +87,7 @@ MediPulse.BI = {
     const live = d.source !== 'mock';
     setText('bi-reference-date', `Datos al ${fmtDate(d.referenceDate)} · ${d.periodLabel || ''}${d.service && d.service !== 'all' ? ` · ${d.service}` : ''}`);
     const sourceBadge = document.getElementById('bi-source-badge');
-    sourceBadge.textContent = live ? 'Datos en vivo · hospital.db' : 'Modo respaldo · datos simulados';
+    sourceBadge.textContent = live ? 'Datos en vivo · hospital.db' : 'Modo respaldo · copia de hospital.db';
     sourceBadge.className = `px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${live ? 'bg-white/20' : 'bg-amber-400 text-amber-950'}`;
     this.syncServiceOptions(d.services || [], d.service || 'all');
 
@@ -412,7 +412,7 @@ MediPulse.BI = {
           ['Medicamentos con menos de 5 días de inventario', k.medsUnder5Days],
           ['Estancia promedio (días)', k.avgLengthOfStayDays],
           ['Rotación de camas (ingresos/cama)', k.bedTurnover],
-          ['Origen de los datos', d.source === 'mock' ? 'Datos simulados' : 'hospital.db']
+          ['Origen de los datos', d.source === 'mock' ? 'Copia de hospital.db (mockData.js)' : 'hospital.db']
         ]
       },
       { title: 'Capacidad por servicio', headers: ['Servicio', 'Ocupadas', 'Totales', 'Libres', 'No disponibles', 'Ocupación (%)'],
@@ -525,7 +525,7 @@ MediPulse.BI = {
     // Gráfico 3: Stock crítico de medicamentos (barras)
     const meds = d.criticalMeds || [];
     setText('bi-meds-subtitle', d.source === 'mock'
-      ? 'Stock actual frente al mínimo de seguridad (datos simulados)'
+      ? 'Stock actual frente al mínimo de seguridad (copia de la BD)'
       : 'Stock actual frente al mínimo de seguridad · stock simulado a partir del consumo real');
     this.makeChart('medicamentos', 'chart-medicamentos', {
       type: 'bar',

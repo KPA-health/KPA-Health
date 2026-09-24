@@ -377,7 +377,7 @@ MediPulse.AI = {
     const hospital = (data.category || 'hospital') === 'hospital';
     const labels = (data.columnLabels && data.columnLabels.length) ? data.columnLabels : (data.columns || []);
     const rows = MediPulse.Privacy.maskTable(data.columns || [], data.rows || []);
-    const engineLabel = data.fromMock ? 'Respaldo · datos simulados'
+    const engineLabel = data.fromMock ? 'Respaldo · copia de la BD'
       : `${data.mode === 'local' ? 'Motor local' : 'Motor en la nube'} · ${data.model}`;
 
     let title = 'Respuesta del asistente';
@@ -476,7 +476,7 @@ MediPulse.AI = {
           <p class="text-[10px] text-slate-400">${footer}</p>
           ${downloadButton}
         </div>` : ''}
-        ${data.fromMock ? '<p class="text-[10px] text-amber-700">Respuesta en modo respaldo con datos simulados: el motor de IA no está disponible.</p>' : ''}
+        ${data.fromMock ? '<p class="text-[10px] text-amber-700">Respuesta en modo respaldo con la copia de la base de datos: el motor de IA no está disponible.</p>' : ''}
       </div>
     `;
     const download = aiMsg.querySelector('[data-action="download-data"]');

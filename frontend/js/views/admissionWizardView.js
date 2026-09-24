@@ -161,7 +161,7 @@ MediPulse.Wizard = {
         });
       }
       if (hint) {
-        hint.textContent = `${beds.length} camas libres${filtered ? ` en ${department}` : ' (todas las áreas)'}${source === 'mock' ? ' · datos simulados' : ' · en vivo'}`;
+        hint.textContent = `${beds.length} camas libres${filtered ? ` en ${department}` : ' (todas las áreas)'}${source === 'mock' ? ' · copia de la BD' : ' · en vivo'}`;
       }
     } catch (error) {
       bedSelect.replaceChildren(new Option('⚠️ No se pudieron cargar las camas', ''));

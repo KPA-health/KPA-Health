@@ -3,7 +3,7 @@
  *
  * Patrón Repository / Adapter + Proxy con fallback: el resto de la app consume
  * este cliente sin saber si los datos provienen del backend FastAPI (hospital.db)
- * o del banco simulado (mockData.js).
+ * o de la copia de respaldo de la BD (mockData.js).
  *
  * Estrategia de resiliencia (para que la demo nunca se caiga):
  *  - useMock = true            -> siempre mock (modo simulación explícito).
@@ -469,7 +469,7 @@ MediPulse.ApiClient = {
     // 9. RECURSO: ASISTENTE IA (/ai/...) — respaldo sin motor de IA
     if (resource === 'ai') {
       if (resourceId === 'providers') {
-        const offline = mode => ({ mode, provider: 'respaldo', model: 'sin conexión', available: false, detail: 'Backend no disponible: modo respaldo con datos simulados' });
+        const offline = mode => ({ mode, provider: 'respaldo', model: 'sin conexión', available: false, detail: 'Backend no disponible: modo respaldo con la copia de la BD' });
         return { defaultMode: 'local', allowFallback: false, providers: [offline('local'), offline('cloud')], voiceEnabled: false, voice: { enabled: false, detail: 'Requiere el backend' } };
       }
       if (resourceId === 'query') return this.mockAssistantAnswer((options.body || {}).question || '', { patients, rooms, pharmacy, doctors });
@@ -548,10 +548,10 @@ MediPulse.ApiClient = {
   mockAssistantAnswer(question, { patients, rooms, pharmacy, doctors }) {
     const q = MediPulse.Privacy.normalize(question);
     const base = {
-      success: true, question, mode: 'respaldo', provider: 'mock', model: 'datos simulados', explanation: 'Respuesta de respaldo calculada con datos simulados (sin motor de IA).',
+      success: true, question, mode: 'respaldo', provider: 'mock', model: 'copia de la BD', explanation: 'Respuesta de respaldo calculada con la copia de la base de datos (sin motor de IA).',
       sql: null, category: 'hospital', blockedBy: null, rows: [], columns: [], columnLabels: [], rowCount: 0, truncated: false,
       attempts: [], timings: { totalMs: 0 }, referenceDate: null, fallbackUsed: true, datos_grafico: [], tipo_grafico: null,
-      warnings: ['El backend no está disponible: respuesta con datos simulados (mockData.js).']
+      warnings: ['El backend no está disponible: respuesta con la última copia de la base de datos (mockData.js).']
     };
     const table = (labels, rows) => ({ columns: labels, columnLabels: labels, rows, rowCount: rows.length });
 
@@ -560,22 +560,22 @@ MediPulse.ApiClient = {
       const icu = beds.filter(b => /uci|intensiv/i.test(`${b.wing} ${b.code} ${b.type}`));
       const scope = icu.length ? icu : beds;
       const occupied = scope.filter(b => b.status === 'Ocupada').length;
-      return { ...base, answer: `Hay ${occupied} de ${scope.length} camas ocupadas${icu.length ? ' en UCI' : ''} (datos simulados).`, ...table(['Cama', 'Estado'], scope.map(b => [b.code, b.status])) };
+      return { ...base, answer: `Hay ${occupied} de ${scope.length} camas ocupadas${icu.length ? ' en UCI' : ''} (copia de la BD).`, ...table(['Cama', 'Estado'], scope.map(b => [b.code, b.status])) };
     }
     if (q.includes('triaj') || q.includes('triag') || q.includes('critic') && q.includes('paciente')) {
       const crit = patients.filter(p => p.triageLevel <= 2 && p.status !== 'Dado de Alta');
-      return { ...base, answer: `Hay ${crit.length} pacientes activos en triaje nivel 1 o 2 (datos simulados).`, ...table(['Ingreso', 'Nivel de triage', 'Diagnóstico', 'Servicio'], crit.map(p => [p.id, p.triageLevel, p.diagnosis, p.department])) };
+      return { ...base, answer: `Hay ${crit.length} pacientes activos en triaje nivel 1 o 2 (copia de la BD).`, ...table(['Ingreso', 'Nivel de triage', 'Diagnóstico', 'Servicio'], crit.map(p => [p.id, p.triageLevel, p.diagnosis, p.department])) };
     }
     if (q.includes('medicament') || q.includes('farmac') || q.includes('stock')) {
       const low = pharmacy.filter(m => m.status === 'Crítico' || m.status === 'Bajo');
-      return { ...base, answer: `Hay ${low.length} medicamentos por debajo del stock de seguridad (datos simulados).`, ...table(['Medicamento', 'Stock actual', 'Stock mínimo', 'Estado'], low.map(m => [m.name, m.stock, m.minStock, m.status])),
+      return { ...base, answer: `Hay ${low.length} medicamentos por debajo del stock de seguridad (copia de la BD).`, ...table(['Medicamento', 'Stock actual', 'Stock mínimo', 'Estado'], low.map(m => [m.name, m.stock, m.minStock, m.status])),
         tipo_grafico: low.length ? 'bar' : null, datos_grafico: low.slice(0, 30).map(m => ({ etiqueta: m.name, 'Stock actual': m.stock, 'Stock mínimo': m.minStock })) };
     }
     if (q.includes('medico') || q.includes('doctor') || q.includes('guardia') || q.includes('especialista')) {
       const available = doctors.filter(d => d.status === 'Disponible');
-      return { ...base, answer: `Hay ${available.length} médicos disponibles (datos simulados).`, ...table(['Médico (ID)', 'Especialidad', 'Turno'], available.map(d => [d.id, d.specialty, d.shift])) };
+      return { ...base, answer: `Hay ${available.length} médicos disponibles (copia de la BD).`, ...table(['Médico (ID)', 'Especialidad', 'Turno'], available.map(d => [d.id, d.specialty, d.shift])) };
     }
-    return { ...base, answer: 'El motor de IA no está disponible en este momento. En modo respaldo solo puedo responder las consultas rápidas con datos simulados.' };
+    return { ...base, answer: 'El motor de IA no está disponible en este momento. En modo respaldo solo puedo responder las consultas rápidas con la copia de la base de datos.' };
   },
 
   /**
