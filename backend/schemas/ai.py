@@ -46,6 +46,15 @@ class AIQueryResponse(CamelModel):
     reference_date: str | None
     fallback_used: bool
     warnings: list[str]
+    # Claves en español y snake_case (alias explícito): contrato de visualización del chat
+    mensaje_texto: str = Field(default="", alias="mensaje_texto", description="Respuesta en lenguaje natural")
+    datos_grafico: list[dict[str, Any]] = Field(
+        default_factory=list, alias="datos_grafico",
+        description='Puntos del gráfico: [{"etiqueta": ..., "<serie>": número}], armados con las filas reales',
+    )
+    tipo_grafico: Literal["bar", "pie", "line", "gauge"] | None = Field(
+        default=None, alias="tipo_grafico", description="Gráfico elegido por código (sin IA); null = sin gráfico"
+    )
 
 
 class AIProviderStatus(CamelModel):

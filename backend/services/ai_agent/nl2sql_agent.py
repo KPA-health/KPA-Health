@@ -16,7 +16,8 @@ Flujo por pregunta:
  5. Enmascarar columnas con apariencia de dato personal (defensa en profundidad).
  6. Redactar la respuesta en lenguaje natural (segunda llamada opcional al LLM).
  7. Guardrails de SALIDA: sin términos técnicos, sin datos personales, cifras verificadas, en español.
- 8. Devolver respuesta + datos con etiquetas legibles + SQL exacto (para la vista técnica).
+ 8. Armar el gráfico con código a partir de las filas reales (sin tokens del LLM).
+ 9. Devolver respuesta + datos con etiquetas legibles + gráfico + SQL exacto (para la vista técnica).
 """
 from __future__ import annotations
 
@@ -35,6 +36,7 @@ from backend.core.privacy import mask_personal_columns
 from backend.models.db_connection import closing_connection
 from backend.models.semantic_layer import REFERENCE_KEY, get_param
 from backend.services.ai_agent import prompts
+from backend.services.ai_agent.chart_builder import build_chart
 from backend.services.ai_agent.column_labels import humanize
 from backend.services.ai_agent.guardrails import messages
 from backend.services.ai_agent.guardrails.input_guard import evaluate_input
@@ -79,6 +81,13 @@ class NL2SQLResult:
     reference_date: str | None = None
     fallback_used: bool = False
     warnings: list[str] = field(default_factory=list)
+    # Contrato de visualización del chat: texto + datos crudos + tipo de gráfico sugerido
+    mensaje_texto: str = ""
+    datos_grafico: list[dict[str, Any]] = field(default_factory=list)
+    tipo_grafico: str | None = None
+
+    def __post_init__(self) -> None:
+        self.mensaje_texto = self.mensaje_texto or self.answer
 
 
 @dataclass(frozen=True)
@@ -121,14 +130,14 @@ def parse_llm_output(text: str) -> LLMOutput:
 
 
 def _parse_summary(text: str) -> str:
-    """Texto de la respuesta redactada: {"answer": ...} (o el texto plano si no es JSON)."""
+    """Texto de la respuesta redactada: {"mensaje_texto": ...} (o el texto plano si no es JSON)."""
     cleaned = _THINK_BLOCK.sub("", text or "").strip()
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError:
         return cleaned
     if isinstance(data, dict):
-        value = data.get("answer") or data.get("respuesta") or next(iter(data.values()), "")
+        value = data.get("mensaje_texto") or data.get("answer") or data.get("respuesta") or next(iter(data.values()), "")
         return str(value).strip()
     return cleaned
 
@@ -250,11 +259,15 @@ class NL2SQLAgent:
         answer = await self._compose_answer(provider, question, reference_date, labels, rows,
                                             result.row_count, limit_hit, summarize, timings, warnings)
 
+        # 8. Gráfico sin IA: tipo y puntos salen de las filas reales (la pregunta solo da pistas de palabras)
+        chart_type, chart_data = build_chart(result.columns, labels, rows, question)
+
         return NL2SQLResult(
             success=True, sql=final_sql, answer=answer, explanation=output.explanation,
             columns=result.columns, column_labels=labels, rows=rows, row_count=result.row_count,
             truncated=result.row_count >= self.settings.max_rows,
-            attempts=attempts, timings=finish(), warnings=warnings, **base,
+            attempts=attempts, timings=finish(), warnings=warnings,
+            tipo_grafico=chart_type, datos_grafico=chart_data, **base,
         )
 
     async def _generate_and_execute(

@@ -542,7 +542,7 @@ MediPulse.ApiClient = {
     const base = {
       success: true, question, mode: 'respaldo', provider: 'mock', model: 'datos simulados', explanation: 'Respuesta de respaldo calculada con datos simulados (sin motor de IA).',
       sql: null, category: 'hospital', blockedBy: null, rows: [], columns: [], columnLabels: [], rowCount: 0, truncated: false,
-      attempts: [], timings: { totalMs: 0 }, referenceDate: null, fallbackUsed: true,
+      attempts: [], timings: { totalMs: 0 }, referenceDate: null, fallbackUsed: true, datos_grafico: [], tipo_grafico: null,
       warnings: ['El backend no está disponible: respuesta con datos simulados (mockData.js).']
     };
     const table = (labels, rows) => ({ columns: labels, columnLabels: labels, rows, rowCount: rows.length });
@@ -560,7 +560,8 @@ MediPulse.ApiClient = {
     }
     if (q.includes('medicament') || q.includes('farmac') || q.includes('stock')) {
       const low = pharmacy.filter(m => m.status === 'Crítico' || m.status === 'Bajo');
-      return { ...base, answer: `Hay ${low.length} medicamentos por debajo del stock de seguridad (datos simulados).`, ...table(['Medicamento', 'Stock actual', 'Stock mínimo', 'Estado'], low.map(m => [m.name, m.stock, m.minStock, m.status])) };
+      return { ...base, answer: `Hay ${low.length} medicamentos por debajo del stock de seguridad (datos simulados).`, ...table(['Medicamento', 'Stock actual', 'Stock mínimo', 'Estado'], low.map(m => [m.name, m.stock, m.minStock, m.status])),
+        tipo_grafico: low.length ? 'bar' : null, datos_grafico: low.slice(0, 30).map(m => ({ etiqueta: m.name, 'Stock actual': m.stock, 'Stock mínimo': m.minStock })) };
     }
     if (q.includes('medico') || q.includes('doctor') || q.includes('guardia') || q.includes('especialista')) {
       const available = doctors.filter(d => d.status === 'Disponible');
