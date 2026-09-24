@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 
 from backend.models.db_connection import get_db
 from backend.services.insights import insights_service
+from backend.services.insights.forecast_service import forecast_alerts
 
 router = APIRouter(prefix="/insights", tags=["Insights"])
 
@@ -29,6 +30,13 @@ def get_wait_drivers(end: str | None = END_DATE_QUERY, conn: sqlite3.Connection 
 def get_demand_alerts(end: str | None = END_DATE_QUERY, conn: sqlite3.Connection = Depends(get_db)):
     """Alertas predictivas: picos de ingresos por familia clínica y medicamentos a reforzar."""
     return {"data": insights_service.demand_alerts(conn, end)}
+
+
+@router.get("/forecast-alerts")
+def get_forecast_alerts(horizon: str = Query(default="day", description="day (1 día), month (30 días), year (365 días)"),
+                        end: str | None = END_DATE_QUERY, conn: sqlite3.Connection = Depends(get_db)):
+    """Predicción de ingresos y alertas por familia clínica, mediante Random Forest validado."""
+    return {"data": forecast_alerts(conn, horizon, end)}
 
 
 @router.get("/recommendations")

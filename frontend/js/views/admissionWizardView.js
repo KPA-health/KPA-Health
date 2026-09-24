@@ -114,7 +114,7 @@ MediPulse.Wizard = {
       if (wings.source === 'api') services = [...new Set(wings.map(w => w.floor))].sort();
     } catch (error) { /* se mantiene la lista por defecto */ }
     if (!services.length) services = MediPulse.Config.hospital.departments;
-    select.innerHTML = services.map(s => `<option value="${MediPulse.UI.escape(s)}">${MediPulse.UI.escape(s)}</option>`).join('');
+    select.replaceChildren(...services.map(service => new Option(service, service)));
     select.value = services.includes(previous) ? previous : services[0];
     select.onchange = () => this.filterAvailableBeds();
   },
@@ -125,9 +125,11 @@ MediPulse.Wizard = {
       const doctors = await MediPulse.DoctorService.getAll();
       if (!doctors.length) return;
       const previous = select.value;
-      select.innerHTML = doctors.map(d =>
-        `<option value="${MediPulse.UI.escape(d.name)}" data-id="${MediPulse.UI.escape(d.id)}">${MediPulse.UI.escape(d.name)} - ${MediPulse.UI.escape(d.specialty || '')}</option>`
-      ).join('');
+      select.replaceChildren(...doctors.map(doctor => {
+        const option = new Option(`${doctor.name} - ${doctor.specialty || ''}`, doctor.name);
+        option.dataset.id = doctor.id;
+        return option;
+      }));
       if ([...select.options].some(o => o.value === previous)) select.value = previous;
     } catch (error) { /* se conservan las opciones estáticas */ }
   },
@@ -136,12 +138,12 @@ MediPulse.Wizard = {
     const bedSelect = document.getElementById('wiz-bed');
     const department = document.getElementById('wiz-department').value;
     const hint = document.getElementById('wiz-bed-hint');
-    bedSelect.innerHTML = '<option value="">Cargando camas libres…</option>';
+    bedSelect.replaceChildren(new Option('Cargando camas libres…', ''));
     try {
       const { beds, filtered, source } = await MediPulse.RoomService.getFreeBeds(department);
-      bedSelect.innerHTML = '';
+      bedSelect.replaceChildren();
       if (!beds.length) {
-        bedSelect.innerHTML = '<option value="">⚠️ No hay camas libres en este momento</option>';
+        bedSelect.add(new Option('⚠️ No hay camas libres en este momento', ''));
       } else {
         const byWing = {};
         beds.forEach(bed => { (byWing[bed.wing] = byWing[bed.wing] || []).push(bed); });
@@ -162,7 +164,7 @@ MediPulse.Wizard = {
         hint.textContent = `${beds.length} camas libres${filtered ? ` en ${department}` : ' (todas las áreas)'}${source === 'mock' ? ' · datos simulados' : ' · en vivo'}`;
       }
     } catch (error) {
-      bedSelect.innerHTML = '<option value="">⚠️ No se pudieron cargar las camas</option>';
+      bedSelect.replaceChildren(new Option('⚠️ No se pudieron cargar las camas', ''));
       MediPulse.UI.toast(`No se pudieron cargar las camas: ${error.message}`, 'error');
     }
   },

@@ -9,7 +9,7 @@ from backend.schemas.common import CamelModel
 
 
 class LoginRequest(CamelModel):
-    username: str = Field(min_length=1, max_length=64)
+    username: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
     password: str = Field(min_length=1, max_length=128)
 
 
@@ -34,11 +34,11 @@ class UserCreate(CamelModel):
     username: str = Field(min_length=3, max_length=64, pattern=r"^[A-Za-z0-9_.-]+$")
     password: str = Field(min_length=8, max_length=128)
     role: Literal["admin", "user"] = "user"
-    name: str = Field(default="", max_length=120)
+    name: str = Field(default="", max_length=120, pattern=r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]*$")
 
 
 class UserUpdate(CamelModel):
     role: Literal["admin", "user"] | None = None
     active: bool | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
-    name: str | None = Field(default=None, max_length=120)
+    name: str | None = Field(default=None, max_length=120, pattern=r"^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]*$")

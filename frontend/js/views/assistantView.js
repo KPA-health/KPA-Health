@@ -19,6 +19,17 @@ MediPulse.AI = {
   recordingTimer: null,
 
   async init() {
+    const chat = document.getElementById('ai-chat-messages');
+    if (chat && !chat.dataset.safeEventsBound) {
+      chat.dataset.safeEventsBound = 'true';
+      chat.addEventListener('click', event => {
+        const button = event.target.closest('[data-ai-diagnose]');
+        if (button) MediPulse.BI.openDiagnosis(button.dataset.aiDiagnose);
+      });
+      chat.addEventListener('change', event => {
+        if (event.target.matches('[data-ai-briefing-date]')) this.showBriefing(event.target.value);
+      });
+    }
     this.renderModeSwitch();
     this.applyTechnicalView();
     this.setupVoiceInput();
@@ -67,7 +78,7 @@ MediPulse.AI = {
     const e = v => MediPulse.UI.escape(v);
     const items = (data.items || []).map(item => MediPulse.UI.alertCard(item)).join('');
     const diagnoseButton = MediPulse.AuthService.can('dashboard') ? `
-      <button type="button" onclick="MediPulse.BI.openDiagnosis('${e(data.periodEnd || '')}')" class="px-3 py-1.5 rounded-lg bg-primary text-tertiary hover:bg-primary-dark text-[11px] font-bold flex items-center gap-1.5 transition-colors">
+      <button type="button" data-ai-diagnose="${e(data.periodEnd || '')}" class="px-3 py-1.5 rounded-lg bg-primary text-tertiary hover:bg-primary-dark text-[11px] font-bold flex items-center gap-1.5 transition-colors">
         <i data-lucide="search" class="w-3.5 h-3.5"></i> Diagnosticar causa raíz de la espera
       </button>` : '';
     return `
@@ -76,7 +87,7 @@ MediPulse.AI = {
           <i data-lucide="sparkles" class="w-4 h-4 text-secondary"></i> Resumen proactivo del hospital
         </p>
         <label class="text-[10px] text-slate-500 flex items-center gap-1">Analizar al
-          <input type="date" value="${e(data.periodEnd || '')}" onchange="MediPulse.AI.showBriefing(this.value)" class="border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] bg-white">
+          <input type="date" value="${e(data.periodEnd || '')}" data-ai-briefing-date class="border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] bg-white">
         </label>
       </div>
       <p class="text-slate-700 leading-relaxed text-[13px]">${e(data.headline)}</p>
@@ -314,14 +325,16 @@ MediPulse.AI = {
     // Mensaje Usuario (texto escapado y sin documentos de identidad)
     const userMsg = document.createElement('div');
     userMsg.className = 'flex items-start justify-end space-x-2.5';
-    userMsg.innerHTML = `
-      <div class="bg-primary text-white rounded-2xl rounded-tr-sm p-3.5 text-xs max-w-lg shadow-sm">
-        <p class="font-semibold">${MediPulse.UI.escape(MediPulse.Privacy.scrubText(userQuery))}</p>
-      </div>
-      <div class="w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-        TÚ
-      </div>
-    `;
+    const bubble = document.createElement('div');
+    bubble.className = 'bg-primary text-white rounded-2xl rounded-tr-sm p-3.5 text-xs max-w-lg shadow-sm';
+    const paragraph = document.createElement('p');
+    paragraph.className = 'font-semibold';
+    MediPulse.UI.setSafeText(paragraph, MediPulse.Privacy.scrubText(userQuery));
+    bubble.appendChild(paragraph);
+    const avatar = document.createElement('div');
+    avatar.className = 'w-8 h-8 rounded-xl bg-secondary text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm';
+    avatar.textContent = 'TÚ';
+    userMsg.append(bubble, avatar);
     chatContainer.appendChild(userMsg);
 
     // Indicador Cargando
@@ -417,7 +430,7 @@ MediPulse.AI = {
 
     const shown = Math.min(rows.length, this.maxRenderedRows);
     const footer = [
-      data.referenceDate ? `Datos al ${fmtDate(data.referenceDate)}` : '',
+      data.referenceDate ? `Datos al ${e(fmtDate(data.referenceDate))}` : '',
       rows.length > 1 ? `${fmtNumber(data.rowCount)} resultado(s)${data.rowCount > shown ? ` · se muestran ${shown}` : ''}` : ''
     ].filter(Boolean).join(' · ');
 

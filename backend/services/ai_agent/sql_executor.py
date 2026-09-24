@@ -14,6 +14,9 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+import sqlglot
+from sqlglot import exp
+
 from backend.models.db_connection import connect_readonly
 from backend.services.ai_agent.catalog import ALLOWED_TABLES, FORBIDDEN_COLUMNS
 
@@ -84,7 +87,16 @@ def execute_readonly(sql: str, timeout_seconds: float) -> QueryResult:
     started = time.perf_counter()
     conn = connect_readonly(authorizer=agent_authorizer, timeout_seconds=timeout_seconds)
     try:
-        cursor = conn.execute(sql)
+        # El SQL del modelo ya pasó por sql_guard. Aun así, los valores se
+        # extraen del AST y se enlazan con SQLite, nunca se interpolan.
+        tree = sqlglot.parse_one(sql, read="sqlite")
+        parameters = {}
+        for index, literal in enumerate(list(tree.find_all(exp.Literal))):
+            key = f"p{index}"
+            parameters[key] = (literal.this if literal.is_string else
+                               int(literal.this) if literal.this.isdigit() else float(literal.this))
+            literal.replace(exp.Placeholder(this=key))
+        cursor = conn.execute(tree.sql(dialect="sqlite"), parameters)
         columns = [d[0] for d in cursor.description or []]
         rows = [[_json_safe(v) for v in row] for row in cursor.fetchall()]
     except sqlite3.DatabaseError as exc:

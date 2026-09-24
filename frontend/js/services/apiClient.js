@@ -53,9 +53,13 @@ MediPulse.ApiClient = {
 
   headers(jsonBody = true) {
     const headers = { 'Accept': 'application/json' };
-    if (MediPulse.Config.authToken) headers['Authorization'] = `Bearer ${MediPulse.Config.authToken}`;
     if (jsonBody) headers['Content-Type'] = 'application/json';
     return headers;
+  },
+
+  csrfToken() {
+    const entry = document.cookie.split('; ').find(part => part.startsWith('medipulse_csrf='));
+    return entry ? decodeURIComponent(entry.slice('medipulse_csrf='.length)) : '';
   },
 
   async fetchWithTimeout(url, init, timeoutMs) {
@@ -81,7 +85,11 @@ MediPulse.ApiClient = {
     try {
       response = await this.fetchWithTimeout(this.buildUrl(endpoint, options.params), {
         method: options.method || 'GET',
-        headers: this.headers(!options.formData),
+        headers: {
+          ...this.headers(!options.formData),
+          ...(['POST', 'PUT', 'PATCH', 'DELETE'].includes((options.method || 'GET').toUpperCase())
+            ? { 'X-CSRF-Token': this.csrfToken() } : {})
+        },
         body: options.formData || (options.body ? JSON.stringify(options.body) : undefined)
       }, options.timeoutMs || MediPulse.Config.requestTimeoutMs);
     } catch (error) {

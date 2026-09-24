@@ -33,9 +33,6 @@ window.MediPulse = window.MediPulse || {};
     // API REST
     // ------------------------------------------------------------------------
     apiUrl: stored('medipulse_api_url') || defaultApiUrl,
-    // JWT de la sesión actual (lo asigna MediPulse.AuthService al iniciar sesión)
-    authToken: stored('medipulse_auth_token') || '',
-
     // true = forzar el modo simulación (no se llama al backend).
     useMock: stored('medipulse_use_mock') === 'true',
 

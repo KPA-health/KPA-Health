@@ -9,7 +9,9 @@ from backend.schemas.common import CamelModel
 
 
 class AIQueryRequest(CamelModel):
-    question: str = Field(min_length=2, max_length=500, description="Pregunta en lenguaje natural")
+    question: str = Field(min_length=2, max_length=500,
+                          pattern=r"^[^<>\x00-\x08\x0b\x0c\x0e-\x1f]*$",
+                          description="Pregunta en lenguaje natural sin etiquetas HTML ni caracteres de control")
     mode: Literal["local", "cloud"] | None = Field(
         default=None, description="local = Qwen vía Ollama; cloud = Gemini. Vacío = AI_DEFAULT_MODE"
     )

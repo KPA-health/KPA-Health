@@ -3,11 +3,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from backend.controllers.dependencies import CurrentUser, get_current_user, require_admin
 from backend.core.config import get_settings
 from backend.core.errors import ForbiddenError
+from backend.core.security import CSRF_COOKIE, SESSION_COOKIE, csrf_token
 from backend.models import user_model
 from backend.models.db_connection import get_db
 from backend.schemas.auth import LoginRequest, LoginResponse, UserCreate, UserOut, UserUpdate
@@ -38,9 +39,20 @@ def get_auth_config():
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, conn: sqlite3.Connection = Depends(get_db)):
+def login(payload: LoginRequest, response: Response, conn: sqlite3.Connection = Depends(get_db)):
     """Emite un JWT. 401 con credenciales inválidas; 429 tras varios intentos fallidos."""
-    return auth_service.login(conn, payload.username, payload.password)
+    result = auth_service.login(conn, payload.username, payload.password)
+    cookie_options = {"secure": True, "samesite": "strict", "path": "/", "max_age": result["expiresIn"]}
+    response.set_cookie(SESSION_COOKIE, result["accessToken"], httponly=True, **cookie_options)
+    response.set_cookie(CSRF_COOKIE, csrf_token(result["accessToken"]), httponly=False, **cookie_options)
+    return result
+
+
+@router.post("/logout")
+def logout(response: Response):
+    response.delete_cookie(SESSION_COOKIE, secure=True, httponly=True, samesite="strict")
+    response.delete_cookie(CSRF_COOKIE, secure=True, samesite="strict")
+    return {"success": True}
 
 
 @router.get("/me", response_model=UserOut)

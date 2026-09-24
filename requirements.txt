@@ -11,6 +11,7 @@ PyJWT==2.15.0
 
 # --- Datos / ETL ---
 pandas==3.0.6
+scikit-learn>=1.5,<2
 
 # --- Asistente IA (NL2SQL) ---
 httpx==0.28.1

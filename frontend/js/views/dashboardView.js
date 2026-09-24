@@ -22,6 +22,31 @@ MediPulse.BI = {
     this.render();
   },
 
+  switchTab(tabId, btnElement) {
+    const tabs = ['tab-exec', 'tab-urgency', 'tab-resources'];
+    tabs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        if (id === tabId) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      }
+    });
+
+    if (btnElement) {
+      document.querySelectorAll('.bi-tab-btn').forEach(btn => {
+        btn.classList.remove('border-primary', 'text-primary', 'font-bold');
+        btn.classList.add('border-transparent', 'text-slate-500', 'font-semibold');
+      });
+      btnElement.classList.remove('border-transparent', 'text-slate-500', 'font-semibold');
+      btnElement.classList.add('border-primary', 'text-primary', 'font-bold');
+    }
+    // Los gráficos de pestañas ocultas necesitan medir de nuevo su contenedor al mostrarse.
+    requestAnimationFrame(() => Object.values(this.charts).forEach(chart => chart.resize()));
+  },
+
   startAutoRefresh() {
     clearInterval(this.refreshTimer);
     this.refreshTimer = setInterval(() => {
@@ -34,7 +59,10 @@ MediPulse.BI = {
   async render(options = {}) {
     if (this.loading) { this.pending = true; return; }
     this.loading = true;
-    if (!this.insightsLoaded) this.renderInsights();   // una sola vez: el autorrefresco no recalcula alertas
+    if (!this.insightsLoaded) {
+      this.renderInsights();   // una sola vez: el autorrefresco no recalcula alertas
+      this.loadForecast();     // Cargar pronósticos de demanda
+    }
     const section = document.getElementById('view-bi');
     if (!options.silent) section.classList.add('opacity-70');
     try {
@@ -442,5 +470,117 @@ MediPulse.BI = {
         scales: { y: { beginAtZero: true, grid: { borderDash: [4, 4] } }, x: { grid: { display: false } } }
       }
     });
+  },
+
+  // 8. Pronósticos de demanda (GET /api/insights/forecast-alerts)
+  async loadForecast() {
+    const horizon = document.getElementById('bi-forecast-horizon').value;
+    const end = document.getElementById('bi-forecast-end').value || null;
+    const summary = document.getElementById('bi-forecast-summary');
+    const content = document.getElementById('bi-forecast-content');
+
+    summary.innerHTML = '<p class="text-slate-500">Cargando pronósticos...</p>';
+    content.classList.add('hidden');
+
+    try {
+      const data = await MediPulse.InsightsService.forecastAlerts(horizon, end);
+      this.paintForecast(data);
+    } catch (error) {
+      summary.innerHTML = `<p class="text-rose-700">No se pudieron cargar los pronósticos: ${MediPulse.UI.escape(error.message)}</p>`;
+      content.classList.add('hidden');
+    }
+  },
+
+  paintForecast(d) {
+    const esc = MediPulse.UI.escape;
+    const summary = document.getElementById('bi-forecast-summary');
+    const content = document.getElementById('bi-forecast-content');
+    const familiesContainer = document.getElementById('bi-forecast-families');
+
+    if (d.referenceDate) {
+        document.getElementById('bi-forecast-end').value = d.referenceDate;
+    }
+
+    if (d.status === 'insufficient_data') {
+       const sample = (d.families || []).find(f => f.status === 'insufficient_data');
+       const detail = sample && Number.isFinite(sample.availableDays) && Number.isFinite(sample.requiredDays)
+         ? `Hay ${sample.availableDays} días disponibles y se requieren ${sample.requiredDays}.`
+         : 'Todavía no hay un histórico suficiente de ingresos.';
+       summary.innerHTML = `<p class="text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded-lg flex items-center gap-2">
+         <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0"></i>
+         <span>Datos insuficientes para el pronóstico. ${detail}</span>
+       </p>`;
+       content.classList.add('hidden');
+       lucide.createIcons();
+       return;
+    }
+
+    summary.innerHTML = `<div class="rounded-xl border bg-slate-50 border-slate-200 p-3 sm:p-4 space-y-2">
+      <p class="text-xs font-bold text-slate-800">
+        Período de predicción: del ${fmtDate(d.predictionStart)} al ${fmtDate(d.predictionEnd)} (${d.horizonDays} días)
+      </p>
+      ${d.note ? `<p class="text-xs text-slate-600">${esc(d.note)}</p>` : ''}
+    </div>`;
+
+    const validFamilies = (d.families || []).filter(f => f.status === 'ready');
+    const labels = validFamilies.map(f => f.family.length > 25 ? f.family.substring(0, 25) + '…' : f.family);
+    const predicted = validFamilies.map(f => f.predictedAdmissions);
+    const previous = validFamilies.map(f => f.previousPeriodAdmissions);
+    content.classList.remove('hidden');
+    this.makeChart('forecast', 'chart-forecast', {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Pronóstico', data: predicted, backgroundColor: '#3b82f6', borderRadius: 4 },
+          { label: 'Período anterior', data: previous, backgroundColor: '#cbd5e1', borderRadius: 4 }
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+          tooltip: {
+            callbacks: {
+              title: items => validFamilies[items[0].dataIndex].family
+            }
+          }
+        },
+        scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Ingresos' } }
+        }
+      }
+    });
+
+    familiesContainer.innerHTML = (d.families || []).map(f => {
+      if (f.status === 'insufficient_data') {
+        return `<div class="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs opacity-70">
+          <div><p class="font-bold text-slate-600">${esc(f.family)}</p></div>
+          <div class="text-right text-[10px] text-slate-500">Datos insuficientes</div>
+        </div>`;
+      }
+      const isAlert = f.alert;
+      const bgClass = isAlert ? 'bg-rose-50 border-rose-200' : 'bg-white border-slate-200';
+      const textClass = isAlert ? 'text-rose-700' : 'text-slate-800';
+      const methodLabel = f.method === 'random_forest' ? 'Random Forest' : 'Período Anterior';
+      const mae = f.validation ? f.validation.selectedMae : null;
+
+      return `
+        <div class="flex items-center justify-between rounded-lg border ${bgClass} px-3 py-2 text-xs">
+          <div>
+            <p class="font-bold ${textClass}">${esc(f.family)} ${isAlert ? '<i data-lucide="alert-circle" class="w-3 h-3 inline"></i>' : ''}</p>
+            <p class="text-[10px] text-slate-500">Error (MAE): ${mae !== null ? fmtNumber(mae, 1) : '—'} · ${methodLabel}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="font-black text-primary">${fmtNumber(f.predictedAdmissions, 0)}</p>
+            <p class="text-[9px] text-slate-400">prev: ${fmtNumber(f.previousPeriodAdmissions, 0)}</p>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    lucide.createIcons();
   }
 };

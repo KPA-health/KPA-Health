@@ -21,6 +21,16 @@ MediPulse.InsightsService = {
     return this.fetch('/insights/demand-alerts', end);
   },
 
+  /** Predicción estadística de demanda. */
+  async forecastAlerts(horizon, end = null) {
+    const params = { horizon };
+    if (end) params.end = end;
+
+    if (MediPulse.Config.useMock) throw new Error('Los pronósticos requieren conexión con el servidor del hospital');
+    const response = await MediPulse.ApiClient.get('/insights/forecast-alerts', params, { fallback: 'none', timeoutMs: 20000 });
+    return response.data || {};
+  },
+
   async fetch(endpoint, end) {
     // Sin respaldo simulado: un insight sobre datos inventados sería engañoso
     if (MediPulse.Config.useMock) throw new Error('Los insights requieren conexión con el servidor del hospital');

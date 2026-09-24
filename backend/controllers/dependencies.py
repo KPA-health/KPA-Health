@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 import jwt
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Cookie
 
 from backend.core.config import get_settings
 from backend.core.errors import ForbiddenError, UnauthorizedError
@@ -38,7 +38,8 @@ class CurrentUser:
 ANONYMOUS_ADMIN = CurrentUser("sin-autenticacion", "Acceso libre (AUTH_ENABLED=false)", ROLE_ADMIN)
 
 
-def get_current_user(authorization: str | None = Header(default=None)) -> CurrentUser:
+def get_current_user(authorization: str | None = Header(default=None),
+                     medipulse_session: str | None = Cookie(default=None)) -> CurrentUser:
     """
     Valida el encabezado `Authorization: Bearer <JWT>` y devuelve el usuario.
 
@@ -47,11 +48,12 @@ def get_current_user(authorization: str | None = Header(default=None)) -> Curren
     """
     if not get_settings().auth.enabled:
         return ANONYMOUS_ADMIN
-    scheme, _, token = (authorization or "").partition(" ")
-    if scheme.lower() != "bearer" or not token.strip():
+    scheme, _, bearer = (authorization or "").partition(" ")
+    token = bearer.strip() if scheme.lower() == "bearer" else medipulse_session
+    if not token:
         raise UnauthorizedError("Inicie sesión para continuar")
     try:
-        claims = decode_access_token(token.strip())
+        claims = decode_access_token(token)
     except jwt.ExpiredSignatureError as exc:
         raise UnauthorizedError("La sesión expiró. Inicie sesión de nuevo") from exc
     except jwt.InvalidTokenError as exc:

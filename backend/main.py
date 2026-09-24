@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.controllers.router import api_router
 from backend.core.config import get_settings
 from backend.core.errors import register_exception_handlers
+from backend.core.security import SecurityMiddleware
 from backend.models.db_connection import closing_connection, enable_wal
 from backend.models.semantic_layer import ensure_semantic_layer
 from backend.models.user_model import ensure_users
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(SecurityMiddleware)
     register_exception_handlers(app)
     app.include_router(api_router)
 

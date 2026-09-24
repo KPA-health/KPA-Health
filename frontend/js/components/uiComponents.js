@@ -11,6 +11,12 @@ MediPulse.UI = {
     return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   },
 
+  /** Escribe datos externos como texto, nunca como HTML ejecutable. */
+  setSafeText(element, value) {
+    element.textContent = String(value ?? '');
+    return element;
+  },
+
   /**
    * Tarjeta de una alerta de /api/insights/briefing (la usan el chat y el dashboard).
    * @param {object} item {type, severity, title, message, action, items}
