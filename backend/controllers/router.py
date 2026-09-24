@@ -29,6 +29,7 @@ PUBLIC_ROUTERS = [auth_controller.router, system_controller.router]
 PROTECTED_ROUTERS: list[tuple[APIRouter, str]] = [
     (dashboard_controller.dashboard_router, PERM_DASHBOARD),
     (dashboard_controller.stats_router, PERM_DASHBOARD),
+    (dashboard_controller.kpis_router, PERM_DASHBOARD),
     (insights_controller.router, PERM_DASHBOARD),
     (pharmacy_controller.router, PERM_DASHBOARD),
     (patient_controller.router, PERM_ADMISSIONS),

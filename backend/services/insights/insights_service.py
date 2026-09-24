@@ -6,7 +6,8 @@ cada cifra es verificable y el módulo funciona aunque no haya IA disponible.
 
 - wait_time_drivers(): por qué cambió la espera en urgencias (descomposición mezcla/desempeño).
 - demand_alerts(): picos de ingresos por familia clínica y medicamentos a reforzar.
-- operational_alerts(): medicamentos por agotarse y servicios con ocupación alta.
+- operational_alerts(): punto 7 del reto -> desabastecimiento, abrir camas, reasignar personal
+  y optimizar la programación de quirófanos.
 - build_briefing(): resumen proactivo que junta todo lo anterior.
 
 Ventanas de análisis (relativas a la fecha de referencia, el "hoy" del HIS):
@@ -47,9 +48,16 @@ MED_NAME_MAX_CHARS = 48
 # Alertas operativas
 TARGET_COVERAGE_DAYS = 14        # las cantidades a pedir apuntan a 14 días de cobertura
 LOW_INVENTORY_DAYS = 5
-HIGH_OCCUPANCY_PCT = 85.0
+HIGH_OCCUPANCY_PCT = 85.0      # ocupación promedio de 7 días a partir de la cual se recomienda abrir camas
+LOW_OCCUPANCY_PCT = 60.0       # servicios que pueden prestar personal de apoyo
 MIN_SERVICE_BEDS = 5
 TOP_MEDS = 5
+STAFF_MIN_WAIT_GAP_MINUTES = 10.0   # diferencia de espera entre turnos que justifica reasignar personal
+STAFF_MIN_WAIT_GAP_PCT = 0.20
+SURGERY_WINDOW_DAYS = 28
+SURGERY_IMBALANCE_PCT = 0.20        # diferencia entre el día hábil más y menos cargado (sobre el promedio)
+SURGERY_CANCELLATION_PCT = 5.0
+WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
 
 SEVERITY_ORDER = {"alta": 0, "media": 1, "baja": 2}
 SHIFT_HOURS = {"Mañana": "07:00-13:00", "Tarde": "13:00-19:00", "Noche": "19:00-07:00"}
@@ -109,6 +117,12 @@ def build_windows(conn: sqlite3.Connection, end: str | None = None) -> Windows:
 def _fmt_date(value: str) -> str:
     """'2026-09-21' -> '21/09/2026'."""
     return f"{value[8:10]}/{value[5:7]}/{value[:4]}"
+
+
+def _sentence(text: str) -> str:
+    """Primera letra en mayúscula y punto final, sin alterar nombres propios del resto del texto."""
+    text = text.strip()
+    return (text[:1].upper() + text[1:] + ("" if text.endswith(".") else ".")) if text else text
 
 
 def _med_name(name: str) -> str:
@@ -187,6 +201,11 @@ def _wait_segments(conn: sqlite3.Connection, start: str, end: str) -> dict[tuple
 
 def _shift_load(base: dict[tuple, Segment], current: dict[tuple, Segment]) -> list[dict]:
     """Pacientes por día en cada turno: semana actual vs. referencia."""
+    def avg_wait(segments: dict[tuple, Segment], shift: str) -> float | None:
+        picked = [s for (_, sh), s in segments.items() if sh == shift]
+        n = sum(s.n for s in picked)
+        return round(sum(s.n * s.mean for s in picked) / n, 1) if n else None
+
     load = []
     for shift in SHIFT_HOURS:
         per_day_c = sum(s.n for (_, sh), s in current.items() if sh == shift) / WINDOW_DAYS
@@ -195,6 +214,7 @@ def _shift_load(base: dict[tuple, Segment], current: dict[tuple, Segment]) -> li
             "shift": shift, "hours": SHIFT_HOURS[shift],
             "currentPerDay": round(per_day_c, 1), "baselinePerDay": round(per_day_b, 1),
             "changePct": round(100 * (per_day_c - per_day_b) / per_day_b, 1) if per_day_b else None,
+            "currentAvgWait": avg_wait(current, shift), "baselineAvgWait": avg_wait(base, shift),
         })
     return load
 
@@ -210,7 +230,8 @@ def _driver_sentence(driver: dict) -> tuple[str, str]:
         action = (f"Reforzar la atención de {_triage_label(level)} en el turno {shift.lower()} ({hours}): "
                   "revisar dotación de personal y flujo de consultorios en esa franja.")
     else:
-        reason = (f"llegaron más {who} ({driver['currentShare']:.0%} de los pacientes frente a "
+        more = "más" if driver["currentShare"] >= driver["baselineShare"] else "menos"
+        reason = (f"llegaron {more} {who} ({driver['currentShare']:.0%} de los pacientes frente a "
                   f"{driver['baselineShare']:.0%} habitual)")
         action = (f"Ajustar la dotación del turno {shift.lower()} ({hours}) al aumento de "
                   f"pacientes {_triage_label(level)}.")
@@ -439,58 +460,166 @@ def demand_alerts(conn: sqlite3.Connection, end: str | None = None) -> dict:
 # Alertas operativas (farmacia y camas)
 # --------------------------------------------------------------------------- #
 
-def operational_alerts(conn: sqlite3.Connection) -> list[dict]:
-    """Medicamentos con pocos días de inventario y servicios con ocupación alta (estado actual)."""
-    alerts = []
+def medication_shortage_alert(conn: sqlite3.Connection) -> dict | None:
+    """Alerta temprana de desabastecimiento: medicamentos con menos de 5 días de inventario."""
     low = conn.execute(
         "SELECT COUNT(*) FROM InventarioFarmacia WHERE DiasInventario < ?", [LOW_INVENTORY_DAYS]
     ).fetchone()[0]
-    if low:
-        meds = conn.execute(
-            "SELECT NombreMedicamento AS name, StockActual AS stock, ConsumoDiarioPromedio AS daily, "
-            "DiasInventario AS days FROM InventarioFarmacia WHERE DiasInventario < ? "
-            "ORDER BY ConsumoDiarioPromedio DESC LIMIT ?",
-            [LOW_INVENTORY_DAYS, TOP_MEDS],
-        ).fetchall()
-        items = [{
-            "name": m["name"], "stock": m["stock"], "daysOfInventory": m["days"],
-            "dailyUse": round(m["daily"] or 0, 1), "orderQuantity": _order_quantity(m["daily"] or 0, m["stock"]),
-        } for m in meds]
-        alerts.append({
-            "type": "desabastecimiento", "severity": "alta",
-            "title": "Riesgo de desabastecimiento",
-            "message": f"{low} medicamentos e insumos tienen menos de {LOW_INVENTORY_DAYS} días de inventario.",
-            "action": "Priorizar la reposición de los de mayor consumo: " + "; ".join(
-                f"{_med_name(i['name'])} (pedir {i['orderQuantity']} und)" for i in items[:3]) + ".",
-            "items": items,
-        })
-
-    services = conn.execute(
-        "SELECT Servicio AS service, COUNT(*) AS total, SUM(Estado = 'Ocupada') AS occupied, "
-        "SUM(Estado = 'Libre') AS free FROM EstadoCamas GROUP BY Servicio HAVING COUNT(*) >= ?",
-        [MIN_SERVICE_BEDS],
+    if not low:
+        return None
+    meds = conn.execute(
+        "SELECT NombreMedicamento AS name, StockActual AS stock, ConsumoDiarioPromedio AS daily, "
+        "DiasInventario AS days FROM InventarioFarmacia WHERE DiasInventario < ? "
+        "ORDER BY ConsumoDiarioPromedio DESC LIMIT ?",
+        [LOW_INVENTORY_DAYS, TOP_MEDS],
     ).fetchall()
-    occupancy = [{
-        "service": s["service"], "totalBeds": s["total"], "occupiedBeds": s["occupied"] or 0,
-        "freeBeds": s["free"] or 0, "occupancyPct": round(100 * (s["occupied"] or 0) / s["total"], 1),
-    } for s in services]
-    most_free = max(occupancy, key=lambda s: s["freeBeds"], default=None)
-    for s in sorted(occupancy, key=lambda s: s["occupancyPct"], reverse=True):
-        if s["occupancyPct"] < HIGH_OCCUPANCY_PCT:
-            break
-        action = f"Evaluar habilitar camas adicionales en {s['service']}"
-        if most_free and most_free["service"] != s["service"] and most_free["freeBeds"]:
-            action += (f" o trasladar pacientes estables a {most_free['service']} "
-                       f"({most_free['freeBeds']} camas libres)")
-        alerts.append({
-            "type": "ocupacion", "severity": "alta" if s["occupancyPct"] >= 95 else "media",
-            "title": f"Ocupación alta en {s['service']}",
-            "message": (f"{s['service']} está al {s['occupancyPct']:.0f} % "
-                        f"({s['occupiedBeds']} de {s['totalBeds']} camas, {s['freeBeds']} libres)."),
-            "action": action + ".",
-            "items": [s],
-        })
-    return alerts
+    items = [{
+        "name": m["name"], "stock": m["stock"], "daysOfInventory": m["days"],
+        "dailyUse": round(m["daily"] or 0, 1), "orderQuantity": _order_quantity(m["daily"] or 0, m["stock"]),
+    } for m in meds]
+    return {
+        "type": "desabastecimiento", "severity": "alta",
+        "title": "Riesgo de desabastecimiento",
+        "message": f"{low} medicamentos e insumos tienen menos de {LOW_INVENTORY_DAYS} días de inventario.",
+        "action": "Priorizar la reposición de los de mayor consumo: " + "; ".join(
+            f"{_med_name(i['name'])} (pedir {i['orderQuantity']} und)" for i in items[:3]) + ".",
+        "items": items,
+    }
+
+
+def bed_capacity_alert(conn: sqlite3.Connection, w: Windows) -> dict | None:
+    """
+    Abrir camas y reasignar personal entre servicios: ocupación promedio de los últimos 7 días.
+    Camas a habilitar = las necesarias para que la ocupación promedio baje al 85 %.
+    """
+    rows = conn.execute(
+        "SELECT Servicio AS service, ROUND(AVG(PorcentajeOcupacion), 1) AS avg_pct, "
+        "MAX(PorcentajeOcupacion) AS max_pct, AVG(CamasOcupadas) AS avg_occupied, MAX(CamasTotales) AS beds "
+        "FROM OcupacionDiaria WHERE Fecha BETWEEN ? AND ? GROUP BY Servicio HAVING MAX(CamasTotales) >= ? "
+        "ORDER BY avg_pct DESC",
+        [w.current_start, w.current_end, MIN_SERVICE_BEDS],
+    ).fetchall()
+    saturated = [r for r in rows if (r["avg_pct"] or 0) >= HIGH_OCCUPANCY_PCT]
+    if not saturated:
+        return None
+    items = [{
+        "service": r["service"], "avgOccupancyPct": r["avg_pct"], "maxOccupancyPct": r["max_pct"],
+        "beds": r["beds"],
+        "bedsToOpen": max(1, math.ceil(r["avg_occupied"] / (HIGH_OCCUPANCY_PCT / 100) - r["beds"])),
+    } for r in saturated]
+    donors = [r for r in rows if (r["avg_pct"] or 0) < LOW_OCCUPANCY_PCT]
+
+    action = "Habilitar camas: " + ", ".join(f"{i['service']} +{i['bedsToOpen']}" for i in items)
+    action += ", o agilizar egresos (planeación temprana del alta) en esos servicios"
+    if donors:
+        action += (". Reasignar personal de enfermería de apoyo desde servicios con baja ocupación ("
+                   + ", ".join(f"{d['service']} {d['avg_pct']:.0f} %" for d in donors[:3]) + ")")
+    return {
+        "type": "ocupacion", "severity": "alta" if any(i["avgOccupancyPct"] >= 95 for i in items) else "media",
+        "title": (f"Ocupación alta sostenida en {len(items)} servicios" if len(items) > 1
+                  else f"Ocupación alta sostenida en {items[0]['service']}"),
+        "message": ("Ocupación promedio de los últimos 7 días por encima del 85 %: "
+                    + ", ".join(f"{i['service']} {i['avgOccupancyPct']:.0f} %" for i in items) + "."),
+        "action": action + ".",
+        "items": items,
+    }
+
+
+def staff_reallocation_alert(wait: dict) -> dict | None:
+    """Reasignar personal entre turnos de urgencias según la espera y la carga de cada turno."""
+    shifts = [s for s in wait.get("shiftLoad", []) if s.get("currentAvgWait") is not None]
+    if len(shifts) < 2:
+        return None
+    worst = max(shifts, key=lambda s: s["currentAvgWait"])
+    best = min(shifts, key=lambda s: s["currentAvgWait"])
+    gap = worst["currentAvgWait"] - best["currentAvgWait"]
+    if gap < STAFF_MIN_WAIT_GAP_MINUTES or gap < STAFF_MIN_WAIT_GAP_PCT * best["currentAvgWait"]:
+        return None
+    return {
+        "type": "personal", "severity": "media",
+        "title": "Reasignación de personal en urgencias",
+        "message": (f"El turno {worst['shift'].lower()} tiene la mayor espera ({worst['currentAvgWait']:.0f} min, "
+                    f"{worst['currentPerDay']:.0f} pacientes/día) y el turno {best['shift'].lower()} la menor "
+                    f"({best['currentAvgWait']:.0f} min, {best['currentPerDay']:.0f} pacientes/día)."),
+        "action": (f"Reasignar personal de apoyo (triage y consulta) del turno {best['shift'].lower()} al turno "
+                   f"{worst['shift'].lower()} ({worst['hours']}) o escalonar horarios para cubrir esa franja."),
+        "items": [{k: s[k] for k in ("shift", "hours", "currentAvgWait", "currentPerDay")} for s in shifts],
+    }
+
+
+def surgery_scheduling_alert(conn: sqlite3.Connection, w: Windows) -> dict | None:
+    """
+    Optimización de la programación de quirófanos (últimas 4 semanas):
+    nivelar la carga entre días hábiles y revisar las cirugías no realizadas.
+    """
+    start = (date.fromisoformat(w.current_end) - timedelta(days=SURGERY_WINDOW_DAYS - 1)).isoformat()
+    rows = conn.execute(
+        "SELECT cp.EstadoCirugia AS status, cp.Servicio AS service, "
+        "COALESCE(cp.Fecha, DATE(i.FechaIngreso)) AS day "
+        "FROM CirugiasProgramadas cp LEFT JOIN Ingresos i ON i.OidIngreso = cp.OidIngreso "
+        "WHERE cp.EstadoCirugia <> 'Sin ingreso en el periodo' "
+        # Las cirugías no realizadas no tienen fecha: se ubican por la fecha de ingreso (igual que el dashboard)
+        "AND COALESCE(cp.Fecha, DATE(i.FechaIngreso)) BETWEEN ? AND ?",
+        [start, w.current_end],
+    ).fetchall()
+    performed = [r for r in rows if r["status"] == "Realizada"]
+    not_performed = [r for r in rows if r["status"] != "Realizada"]
+    if not performed:
+        return None
+
+    weeks = SURGERY_WINDOW_DAYS / 7
+    per_weekday = [0.0] * 7
+    for r in performed:
+        per_weekday[date.fromisoformat(r["day"]).weekday()] += 1 / weeks
+    business = per_weekday[:5]
+    mean_business = sum(business) / 5
+    peak_day = max(range(5), key=lambda d: business[d])
+    valley_day = min(range(5), key=lambda d: business[d])
+    imbalance = (business[peak_day] - business[valley_day]) / mean_business if mean_business else 0.0
+    cancellation_pct = 100 * len(not_performed) / len(rows)
+
+    cancelled_by_service: dict[str, int] = {}
+    for r in not_performed:
+        cancelled_by_service[r["service"] or "Sin servicio"] = cancelled_by_service.get(r["service"] or "Sin servicio", 0) + 1
+    worst_service = max(cancelled_by_service.items(), key=lambda kv: kv[1], default=None)
+
+    if imbalance < SURGERY_IMBALANCE_PCT and cancellation_pct < SURGERY_CANCELLATION_PCT:
+        return None
+    actions = []
+    if imbalance >= SURGERY_IMBALANCE_PCT:
+        to_move = max(1, round((business[peak_day] - business[valley_day]) / 2))
+        surgeries = "1 cirugía electiva" if to_move == 1 else f"unas {to_move} cirugías electivas"
+        actions.append(f"Mover {surgeries} por semana del {WEEKDAYS[peak_day]} al "
+                       f"{WEEKDAYS[valley_day]} para nivelar el uso de los quirófanos")
+    if worst_service:
+        actions.append(f"revisar las {worst_service[1]} cirugías no realizadas de {worst_service[0]} "
+                       "(preparación prequirúrgica y disponibilidad de cama antes de programar)")
+    severity = "media" if imbalance >= 0.3 or cancellation_pct >= SURGERY_CANCELLATION_PCT else "baja"
+    return {
+        "type": "cirugia", "severity": severity,
+        "title": "Optimización de la programación de quirófanos",
+        "message": (f"Últimas 4 semanas: {len(performed)} cirugías realizadas, {len(not_performed)} no realizadas "
+                    f"({100 - cancellation_pct:.0f} % de cumplimiento). Carga desigual entre días hábiles: "
+                    f"{WEEKDAYS[peak_day]} {business[peak_day]:.1f}/día frente a {WEEKDAYS[valley_day]} "
+                    f"{business[valley_day]:.1f}/día."),
+        "action": _sentence("; ".join(actions)),
+        "items": [{"day": WEEKDAYS[d], "perDay": round(per_weekday[d], 1),
+                   "vsAveragePct": round(100 * (per_weekday[d] - mean_business) / mean_business, 1) if mean_business else None}
+                  for d in range(7)],
+    }
+
+
+def operational_alerts(conn: sqlite3.Connection, end: str | None = None, wait: dict | None = None) -> list[dict]:
+    """Punto 7 del reto: desabastecimiento, camas, personal y quirófanos (solo las que aplican)."""
+    w = build_windows(conn, end)
+    wait = wait or wait_time_drivers(conn, end)
+    alerts = [
+        medication_shortage_alert(conn),
+        bed_capacity_alert(conn, w),
+        staff_reallocation_alert(wait),
+        surgery_scheduling_alert(conn, w),
+    ]
+    return [a for a in alerts if a]
 
 
 # --------------------------------------------------------------------------- #
@@ -513,7 +642,7 @@ def build_briefing(conn: sqlite3.Connection, end: str | None = None) -> dict:
             "message": wait["summary"],
             "action": wait["recommendation"], "items": wait["drivers"][:3],
         })
-    items.extend(operational_alerts(conn))
+    items.extend(operational_alerts(conn, end, wait))
     items.sort(key=lambda i: SEVERITY_ORDER.get(i["severity"], 9))
 
     high = sum(1 for i in items if i["severity"] == "alta")

@@ -622,6 +622,72 @@
             </div>
           </div>
 
+          <!-- FILA 6: INDICADORES DE GESTIÓN DEL RETO (GET /api/kpis) -->
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="activity" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Indicadores de gestión hospitalaria
+                </h3>
+                <p id="bi-mgmt-subtitle" class="text-[11px] sm:text-xs text-slate-500">Espera por triage, demanda por especialidad, rotación de farmacia y ocupación mensual</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <div class="px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-soft" title="Promedio de días de estancia de los ingresos hospitalarios del periodo">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Estancia promedio</p>
+                  <p id="kpi-avg-stay" class="text-lg font-black text-primary">—</p>
+                </div>
+                <div class="px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-soft" title="Ingresos hospitalarios del periodo por cama disponible">
+                  <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Giro cama</p>
+                  <p id="kpi-bed-turnover" class="text-lg font-black text-primary">—</p>
+                </div>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="clock" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Tiempo de espera por triage
+                </h3>
+                <p id="bi-triage-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Minutos promedio de triage a primera atención</p>
+                <div class="relative h-56"><canvas id="chart-espera-triage"></canvas></div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="stethoscope" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Especialidades más solicitadas
+                </h3>
+                <p id="bi-specialties-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Ingresos por especialidad principal</p>
+                <div class="relative h-56"><canvas id="chart-especialidades"></canvas></div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="repeat" class="w-4 h-4 sm:w-5 sm:h-5 text-rose-600"></i>
+                  Rotación de medicamentos e insumos
+                </h3>
+                <p id="bi-rotation-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Unidades dispensadas en los últimos 30 días</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-rose-600 uppercase tracking-wider mb-1.5">Mayor rotación</p>
+                    <div id="bi-rotation-high" class="divide-y divide-slate-100"></div>
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Menor rotación</p>
+                    <div id="bi-rotation-low" class="divide-y divide-slate-100"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-soft min-w-0">
+                <h3 class="font-extrabold text-sm sm:text-base text-primary flex items-center gap-2">
+                  <i data-lucide="calendar-range" class="w-4 h-4 sm:w-5 sm:h-5 text-secondary"></i>
+                  Ocupación promedio mensual por servicio
+                </h3>
+                <p id="bi-monthly-subtitle" class="text-[11px] sm:text-xs text-slate-500 mb-3">Promedio del % diario de camas ocupadas</p>
+                <div id="bi-monthly-occupancy" class="overflow-x-auto"></div>
+              </div>
+            </div>
+          </div>
+
         </section>
 
         <!-- ===================================================================== -->
@@ -1296,30 +1362,30 @@
   <!-- JAVASCRIPT MODULAR Y REACTIVO                                             -->
   <!-- ========================================================================= -->
   <!-- Módulos: configuración, datos simulados, privacidad, cliente HTTP con fallback y servicios de dominio -->
-  <script src="js/config.js?v=20260924h"></script>
-  <script src="js/mockData.js?v=20260924h"></script>
-  <script src="js/services/privacy.js?v=20260924h"></script>
-  <script src="js/services/apiClient.js?v=20260924h"></script>
-  <script src="js/services/authService.js?v=20260924h"></script>
-  <script src="js/services/patientService.js?v=20260924h"></script>
-  <script src="js/services/doctorService.js?v=20260924h"></script>
-  <script src="js/services/appointmentService.js?v=20260924h"></script>
-  <script src="js/services/roomService.js?v=20260924h"></script>
-  <script src="js/services/pharmacyService.js?v=20260924h"></script>
-  <script src="js/services/dashboardService.js?v=20260924h"></script>
-  <script src="js/services/dataService.js?v=20260924h"></script>
-  <script src="js/services/aiService.js?v=20260924h"></script>
-  <script src="js/services/insightsService.js?v=20260924h"></script>
+  <script src="js/config.js?v=20260924i"></script>
+  <script src="js/mockData.js?v=20260924i"></script>
+  <script src="js/services/privacy.js?v=20260924i"></script>
+  <script src="js/services/apiClient.js?v=20260924i"></script>
+  <script src="js/services/authService.js?v=20260924i"></script>
+  <script src="js/services/patientService.js?v=20260924i"></script>
+  <script src="js/services/doctorService.js?v=20260924i"></script>
+  <script src="js/services/appointmentService.js?v=20260924i"></script>
+  <script src="js/services/roomService.js?v=20260924i"></script>
+  <script src="js/services/pharmacyService.js?v=20260924i"></script>
+  <script src="js/services/dashboardService.js?v=20260924i"></script>
+  <script src="js/services/dataService.js?v=20260924i"></script>
+  <script src="js/services/aiService.js?v=20260924i"></script>
+  <script src="js/services/insightsService.js?v=20260924i"></script>
 
   <!-- Capa de Vista: controladores de cada módulo (js/views), componentes y arranque -->
-  <script src="js/views/viewHelpers.js?v=20260924h"></script>
-  <script src="js/views/navigationView.js?v=20260924h"></script>
-  <script src="js/views/dashboardView.js?v=20260924h"></script>
-  <script src="js/views/assistantView.js?v=20260924h"></script>
-  <script src="js/views/admissionWizardView.js?v=20260924h"></script>
-  <script src="js/views/dataSyncView.js?v=20260924h"></script>
-  <script src="js/components/uiComponents.js?v=20260924h"></script>
-  <script src="js/views/authView.js?v=20260924h"></script>
-  <script src="js/app.js?v=20260924h"></script>
+  <script src="js/views/viewHelpers.js?v=20260924i"></script>
+  <script src="js/views/navigationView.js?v=20260924i"></script>
+  <script src="js/views/dashboardView.js?v=20260924i"></script>
+  <script src="js/views/assistantView.js?v=20260924i"></script>
+  <script src="js/views/admissionWizardView.js?v=20260924i"></script>
+  <script src="js/views/dataSyncView.js?v=20260924i"></script>
+  <script src="js/components/uiComponents.js?v=20260924i"></script>
+  <script src="js/views/authView.js?v=20260924i"></script>
+  <script src="js/app.js?v=20260924i"></script>
 </body>
 </html>

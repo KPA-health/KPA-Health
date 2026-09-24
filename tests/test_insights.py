@@ -73,3 +73,42 @@ def test_wait_drivers_explain_the_whole_change(client):
 def test_invalid_end_date_is_rejected(client):
     response = client.get("/api/insights/briefing", params={"end": "21-09-2026"})
     assert response.status_code == 400
+
+
+def test_staff_reallocation_moves_support_to_the_slowest_shift():
+    from backend.services.insights.insights_service import staff_reallocation_alert
+    wait = {"shiftLoad": [
+        {"shift": "Mañana", "hours": "07:00-13:00", "currentAvgWait": 60.0, "currentPerDay": 40.0},
+        {"shift": "Tarde", "hours": "13:00-19:00", "currentAvgWait": 80.0, "currentPerDay": 35.0},
+        {"shift": "Noche", "hours": "19:00-07:00", "currentAvgWait": 50.0, "currentPerDay": 25.0},
+    ]}
+    alert = staff_reallocation_alert(wait)
+    assert alert["type"] == "personal"
+    assert "del turno noche al turno tarde" in alert["action"]
+    balanced = {"shiftLoad": [dict(s, currentAvgWait=60.0) for s in wait["shiftLoad"]]}
+    assert staff_reallocation_alert(balanced) is None
+
+
+def test_recommendations_endpoint_covers_point_7(client):
+    response = client.get("/api/insights/recommendations")
+    assert response.status_code == 200
+    for item in response.json()["data"]["items"]:
+        assert item["type"] in {"desabastecimiento", "ocupacion", "personal", "cirugia"}
+        assert item["action"]
+
+
+def test_kpis_endpoint_has_the_challenge_kpis(client):
+    data = client.get("/api/kpis", params={"period": "30d"}).json()["data"]
+    kpis = data["kpis"]
+    for key in ("occupancyRate", "avgWaitMinutes", "surgeryComplianceRate", "medsUnder5Days",
+                "avgLengthOfStayDays", "bedTurnover"):
+        assert key in kpis
+    for block in ("waitByTriage", "topSpecialties", "medicationRotation", "monthlyOccupancy",
+                  "serviceDistribution"):
+        assert block in data
+    rotation = data["medicationRotation"]
+    assert {"highest", "lowest", "withoutMovement30d"} <= set(rotation)
+    if rotation["highest"] and rotation["lowest"]:
+        assert rotation["highest"][0]["units30d"] >= rotation["lowest"][0]["units30d"]
+    monthly = data["monthlyOccupancy"]
+    assert all(len(row["values"]) == len(monthly["months"]) for row in monthly["rows"])

@@ -134,7 +134,89 @@ MediPulse.BI = {
 
     // 4. Gráficos
     this.renderCharts(d);
+    this.paintManagement(d);
     lucide.createIcons();
+  },
+
+  // 7. Indicadores de gestión del reto: espera por triage, especialidades, rotación y ocupación mensual
+  paintManagement(d) {
+    const esc = MediPulse.UI.escape;
+    const k = d.kpis || {};
+    const period = d.periodLabel || 'periodo';
+    setText('kpi-avg-stay', k.avgLengthOfStayDays !== null && k.avgLengthOfStayDays !== undefined ? `${fmtNumber(k.avgLengthOfStayDays, 1)} días` : '—');
+    setText('kpi-bed-turnover', k.bedTurnover !== null && k.bedTurnover !== undefined ? `${fmtNumber(k.bedTurnover, 2)} ingresos/cama` : '—');
+
+    // Espera por nivel de triage (colores del triage: 1 rojo ... 5 azul)
+    const triage = d.waitByTriage || [];
+    const triageColors = { 1: '#e11d48', 2: '#f97316', 3: '#f59e0b', 4: '#059669', 5: '#2563eb' };
+    setText('bi-triage-subtitle', `Minutos promedio de triage a primera atención · ${period}`);
+    this.makeChart('esperaTriage', 'chart-espera-triage', {
+      type: 'bar',
+      data: {
+        labels: triage.map(t => `Triage ${t.level}`),
+        datasets: [{ label: 'Espera promedio (min)', data: triage.map(t => t.avgMinutes), backgroundColor: triage.map(t => triageColors[t.level] || '#64748b'), borderRadius: 4 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: ctx => `${fmtNumber(triage[ctx.dataIndex].patients)} pacientes` } } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'minutos' } }, x: { grid: { display: false } } }
+      }
+    });
+
+    // Especialidades más solicitadas (barras horizontales)
+    const specialties = d.topSpecialties || [];
+    setText('bi-specialties-subtitle', `Ingresos por especialidad principal · ${period}`);
+    const shortName = name => (name.length > 26 ? `${name.substring(0, 26)}…` : name);
+    this.makeChart('especialidades', 'chart-especialidades', {
+      type: 'bar',
+      data: {
+        labels: specialties.map(s => shortName(s.specialty)),
+        datasets: [{ label: 'Ingresos', data: specialties.map(s => s.admissions), backgroundColor: '#3b8070', borderRadius: 4 }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { title: items => specialties[items[0].dataIndex].specialty } } },
+        scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 10 } } } }
+      }
+    });
+
+    // Rotación de farmacia: mayor y menor consumo de 30 días
+    const rotation = d.medicationRotation || { highest: [], lowest: [] };
+    setText('bi-rotation-subtitle', rotation.totalItems
+      ? `Unidades dispensadas en los últimos 30 días · ${fmtNumber(rotation.withoutMovement30d)} de ${fmtNumber(rotation.totalItems)} ítems sin movimiento`
+      : 'Unidades dispensadas en los últimos 30 días');
+    const rotationList = items => (items || []).map(m => `
+      <div class="py-1.5 flex items-center justify-between gap-2 text-xs">
+        <span class="text-slate-700 truncate" title="${esc(m.name)}">${esc(m.name)}</span>
+        <span class="shrink-0 text-right">
+          <span class="font-bold text-primary">${fmtNumber(m.units30d)}</span>
+          ${m.rotationIndex !== null && m.rotationIndex !== undefined ? `<span class="block text-[10px] text-slate-400">${fmtNumber(m.rotationIndex, 1)}× stock/mes</span>` : ''}
+        </span>
+      </div>`).join('') || '<p class="text-xs text-slate-400">Sin datos</p>';
+    document.getElementById('bi-rotation-high').innerHTML = rotationList(rotation.highest);
+    document.getElementById('bi-rotation-low').innerHTML = rotationList(rotation.lowest);
+
+    // Ocupación promedio mensual por servicio (tabla con color por nivel de ocupación)
+    const monthly = d.monthlyOccupancy || { months: [], rows: [] };
+    const monthNames = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    const monthLabel = m => `${monthNames[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)}`;
+    const cellClass = v => (v === null || v === undefined ? 'text-slate-300'
+      : v >= 85 ? 'bg-rose-100 text-rose-700 font-bold' : v >= 60 ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700');
+    document.getElementById('bi-monthly-occupancy').innerHTML = monthly.rows.length ? `
+      <table class="w-full text-xs">
+        <thead class="text-[10px] uppercase text-slate-500">
+          <tr><th class="text-left p-1.5">Servicio</th>${monthly.months.map(m => `<th class="p-1.5 text-center">${monthLabel(m)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>
+          ${monthly.rows.map(r => `
+          <tr class="border-t border-slate-100">
+            <td class="p-1.5 font-semibold text-slate-700 whitespace-nowrap">${esc(r.service)}</td>
+            ${r.values.map(v => `<td class="p-1.5 text-center rounded ${cellClass(v)}">${v === null || v === undefined ? '—' : `${fmtNumber(v, 0)}%`}</td>`).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <p class="text-[10px] text-slate-400 mt-2">Rojo ≥ 85 % (saturación) · ámbar 60-85 % · verde &lt; 60 %</p>`
+      : '<p class="text-xs text-slate-400">Sin histórico de ocupación.</p>';
   },
 
   // 5. Alertas e insights con fecha de análisis (GET /api/insights/briefing)

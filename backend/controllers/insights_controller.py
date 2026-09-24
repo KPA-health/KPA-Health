@@ -29,3 +29,9 @@ def get_wait_drivers(end: str | None = END_DATE_QUERY, conn: sqlite3.Connection 
 def get_demand_alerts(end: str | None = END_DATE_QUERY, conn: sqlite3.Connection = Depends(get_db)):
     """Alertas predictivas: picos de ingresos por familia clínica y medicamentos a reforzar."""
     return {"data": insights_service.demand_alerts(conn, end)}
+
+
+@router.get("/recommendations")
+def get_recommendations(end: str | None = END_DATE_QUERY, conn: sqlite3.Connection = Depends(get_db)):
+    """Acciones sugeridas (punto 7 del reto): desabastecimiento, abrir camas, reasignar personal y quirófanos."""
+    return {"data": {"items": insights_service.operational_alerts(conn, end)}}

@@ -14,7 +14,7 @@ MediPulse.UI = {
   /**
    * Tarjeta de una alerta de /api/insights/briefing (la usan el chat y el dashboard).
    * @param {object} item {type, severity, title, message, action, items}
-   * @param {{detail?: boolean}} options detail = agrega la tabla de medicamentos y cantidades a pedir.
+   * @param {{detail?: boolean}} options detail = agrega la tabla de detalle (medicamentos, camas, turnos o días).
    */
   alertCard(item, { detail = false } = {}) {
     const e = v => this.escape(v);
@@ -23,27 +23,37 @@ MediPulse.UI = {
       media: ['bg-amber-50 border-amber-200', 'bg-amber-500 text-white', 'Prioridad media'],
       baja: ['bg-emerald-50 border-emerald-200', 'bg-emerald-600 text-white', 'Informativa']
     };
-    const icons = { demanda: 'trending-up', espera: 'clock', desabastecimiento: 'pill', ocupacion: 'bed' };
+    const icons = { demanda: 'trending-up', espera: 'clock', desabastecimiento: 'pill', ocupacion: 'bed', personal: 'users', cirugia: 'scissors' };
     const [box, badge, label] = styles[item.severity] || styles.baja;
 
-    // Detalle: medicamentos asociados (pico de demanda) o de mayor consumo (desabastecimiento)
-    let rows = [];
-    if (detail && item.type === 'demanda') {
-      rows = (item.items || []).map(m => [m.name, `${fmtNumber(m.coverageDays, 0)} días`, m.orderQuantity ? `${fmtNumber(m.orderQuantity)} und` : 'Suficiente']);
-    } else if (detail && item.type === 'desabastecimiento') {
-      rows = (item.items || []).map(m => [m.name, `${fmtNumber(m.daysOfInventory, 1)} días`, `${fmtNumber(m.orderQuantity)} und`]);
-    }
+    // Detalle por tipo de alerta: [encabezados, filas]
+    const pct = v => (v === null || v === undefined ? '—' : `${v > 0 ? '+' : ''}${fmtNumber(v, 0)}%`);
+    const tables = {
+      demanda: [['Medicamento asociado', 'Cobertura', 'Pedir'],
+        m => [m.name, `${fmtNumber(m.coverageDays, 0)} días`, m.orderQuantity ? `${fmtNumber(m.orderQuantity)} und` : 'Suficiente']],
+      desabastecimiento: [['Mayor consumo', 'Cobertura', 'Pedir'],
+        m => [m.name, `${fmtNumber(m.daysOfInventory, 1)} días`, `${fmtNumber(m.orderQuantity)} und`]],
+      ocupacion: [['Servicio', 'Ocupación 7 días', 'Abrir'],
+        s => [s.service, `${fmtNumber(s.avgOccupancyPct, 1)}%`, `+${fmtNumber(s.bedsToOpen)} camas`]],
+      personal: [['Turno', 'Espera', 'Pacientes/día'],
+        s => [`${s.shift} (${s.hours})`, `${fmtNumber(s.currentAvgWait, 0)} min`, fmtNumber(s.currentPerDay, 1)]],
+      cirugia: [['Día', 'Cirugías/día', 'Vs. promedio hábil'],
+        d => [d.day, fmtNumber(d.perDay, 1), pct(d.vsAveragePct)]]
+    };
+    const spec = detail ? tables[item.type] : null;
+    const headers = spec ? spec[0] : [];
+    const rows = spec ? (item.items || []).map(spec[1]) : [];
     const table = rows.length ? `
       <table class="w-full text-left text-[11px] bg-white/70 rounded-lg overflow-hidden">
         <thead class="text-[9px] uppercase text-slate-500">
-          <tr><th class="px-2 py-1">${item.type === 'demanda' ? 'Medicamento asociado' : 'Mayor consumo'}</th><th class="px-2 py-1 text-right">Cobertura</th><th class="px-2 py-1 text-right">Pedir</th></tr>
+          <tr><th class="px-2 py-1">${e(headers[0])}</th><th class="px-2 py-1 text-right">${e(headers[1])}</th><th class="px-2 py-1 text-right">${e(headers[2])}</th></tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          ${rows.map(([name, coverage, order]) => `
+          ${rows.map(([name, middle, last]) => `
           <tr>
             <td class="px-2 py-1 text-slate-700 max-w-[220px] truncate" title="${e(name)}">${e(name)}</td>
-            <td class="px-2 py-1 text-right whitespace-nowrap">${e(coverage)}</td>
-            <td class="px-2 py-1 text-right font-bold text-primary whitespace-nowrap">${e(order)}</td>
+            <td class="px-2 py-1 text-right whitespace-nowrap">${e(middle)}</td>
+            <td class="px-2 py-1 text-right font-bold text-primary whitespace-nowrap">${e(last)}</td>
           </tr>`).join('')}
         </tbody>
       </table>` : '';
