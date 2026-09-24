@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from backend.ai.nl2sql.prompts import SUMMARY_SYSTEM_PROMPT
-from backend.ai.providers.base import LLMProvider, LLMResult, ProviderHealth, ProviderUnavailableError
+from backend.services.ai_agent.llm_providers.base import LLMProvider, LLMResult, ProviderHealth, ProviderUnavailableError
+from backend.services.ai_agent.prompts import SUMMARY_SYSTEM_PROMPT
 
 
 class FakeProvider(LLMProvider):
@@ -32,9 +32,9 @@ class FakeProvider(LLMProvider):
 
 @pytest.fixture
 def use_providers(monkeypatch):
-    """Sustituye el registry por proveedores falsos por modo."""
+    """Sustituye la fábrica de proveedores por proveedores falsos por modo."""
     def install(**by_mode):
-        monkeypatch.setattr("backend.ai.nl2sql.service.get_provider",
+        monkeypatch.setattr("backend.services.ai_agent.nl2sql_agent.get_provider",
                             lambda mode, settings=None: by_mode[mode])
         return by_mode
     return install
@@ -78,16 +78,16 @@ def test_personal_data_blocked_before_calling_the_model(client, use_providers):
     use_providers(local=provider)
     body = client.post("/api/ai/query", json={"question": "nombres de pacientes", "mode": "local"}).json()
     assert body["success"] is True and body["sql"] is None
-    assert body["category"] == "datos_personales" and body["blockedBy"] == "entrada"
+    assert body["category"] == "personal_data" and body["blockedBy"] == "input_guard"
     assert provider.prompts == []  # el guardrail respondió sin gastar el modelo
 
 
 def test_model_classifies_out_of_scope(client, use_providers):
     use_providers(local=FakeProvider("local", [
-        {"categoria": "fuera_de_alcance", "sql": None, "explanation": "No es del hospital"}
+        {"category": "out_of_scope", "sql": None, "explanation": "No es del hospital"}
     ]))
     body = client.post("/api/ai/query", json={"question": "¿Quién ganó ayer?", "mode": "local"}).json()
-    assert body["category"] == "fuera_de_alcance" and body["blockedBy"] == "modelo"
+    assert body["category"] == "out_of_scope" and body["blockedBy"] == "model"
     assert body["answer"].startswith("Solo puedo responder sobre la operación")
 
 
@@ -95,12 +95,12 @@ def test_english_question_is_rejected_in_spanish(client, use_providers):
     provider = FakeProvider("local", [])
     use_providers(local=provider)
     body = client.post("/api/ai/query", json={"question": "How many ICU beds are occupied today?"}).json()
-    assert body["category"] == "idioma_no_soportado" and "español" in body["answer"]
+    assert body["category"] == "unsupported_language" and "español" in body["answer"]
     assert provider.prompts == []
 
 
 def test_hospital_question_without_data_uses_canned_message(client, use_providers):
-    use_providers(local=FakeProvider("local", [{"categoria": "hospital", "sql": None, "explanation": "x"}]))
+    use_providers(local=FakeProvider("local", [{"category": "hospital", "sql": None, "explanation": "x"}]))
     body = client.post("/api/ai/query", json={"question": "¿Cuántas ambulancias hay?", "mode": "local"}).json()
     assert body["sql"] is None and body["answer"].startswith("No cuento con información")
 
@@ -111,7 +111,7 @@ def test_summary_is_sanitized_and_labels_are_human(client, use_providers):
     async def summary(system, prompt, *, json_mode=True, temperature=0.0, schema=None):
         if system != SUMMARY_SYSTEM_PROMPT:
             return await FakeProvider.generate(provider, system, prompt)
-        return LLMResult('{"respuesta": "La consulta SQL devolvió 1 fila en la base de datos: 25 camas."}', "fake", "m", 1)
+        return LLMResult('{"answer": "La consulta SQL devolvió 1 fila en la base de datos: 25 camas."}', "fake", "m", 1)
 
     provider.generate = summary
     use_providers(local=provider)

@@ -38,22 +38,31 @@ El Hospital Susana López de Valencia es una institución de mediana complejidad
 La arquitectura, las decisiones técnicas y los patrones de diseño están documentados en **[`Historial_Arquitectura_Backend.md`](Historial_Arquitectura_Backend.md)**.
 
 ```
-Navegador (SPA hospital-spa)  ──►  FastAPI (backend/)  ──►  SQLite hospital.db
-        │  fallback automático              │
-        └──► mockData.js                    ├──► IA local: Ollama (Qwen3)
-                                            ├──► IA nube: OpenRouter / Gemini
-                                            └──► Voz: faster-whisper (local)
+ VISTA                         CONTROLADOR                 MODELO
+ front-kpa (SPA)  ──HTTP──►  backend/controllers  ──►  backend/models  ──►  SQLite hospital.db
+   │ fallback automático            │
+   └──► mockData.js                 └──► backend/services
+                                         ├── ai_agent/        IA local (Ollama/Qwen3) o nube (OpenRouter/Gemini)
+                                         ├── speech/          Voz: faster-whisper (local)
+                                         ├── file_processing/ Limpieza e inserción con Pandas
+                                         └── auth/            JWT, contraseñas y roles
 ```
 
 ## 3. Estructura del proyecto
 
 ```
-├── backend/               API FastAPI (rutas, repositorios, capa semántica, IA, voz, privacidad)
-├── hospital-spa/          Frontend SPA (index.html + js/: config, apiClient, servicios, mock)
+├── backend/               API FastAPI con arquitectura MVC
+│   ├── main.py            Fábrica de la app: middlewares, errores, rutas y SPA estática
+│   ├── controllers/       CONTROLADOR: un archivo por recurso (/patients, /rooms, /ai...)
+│   ├── models/            MODELO: conexión SQLite, esquema del HIS, capa semántica y entidades
+│   ├── schemas/           DTOs Pydantic (contrato JSON con la SPA)
+│   ├── services/          Agente IA NL2SQL, Whisper, procesamiento de archivos y autenticación
+│   └── core/              Configuración, errores HTTP, privacidad y utilidades
+├── front-kpa/             VISTA: SPA (index.html + js/services, js/views, js/components, app.js)
 ├── data/                  Datasets del HIS (.txt separados por "|")
 ├── tests/                 Pruebas automáticas (pytest)
 ├── deploy/                Script de preparación para PythonAnywhere
-├── setup_db.py            ETL: construye hospital.db desde data/
+├── setup_db.py            CLI de carga inicial: construye hospital.db desde data/
 ├── requirements.txt       Dependencias completas (desarrollo + voz + pruebas)
 ├── requirements-deploy.txt Dependencias livianas para servidor
 ├── .env.example           Plantilla de variables de entorno (copiar a .env)
@@ -175,7 +184,7 @@ python -m pytest
 | `AUTH_ENABLED` | `false` para desactivar el login (acceso libre como administrador) |
 | `JWT_SECRET` / `JWT_EXPIRE_MINUTES` | Secreto de firma y duración de la sesión |
 
-En el frontend, `hospital-spa/js/config.js` tiene los *feature flags* `ENABLE_VOICE_INPUT` (mostrar u ocultar el micrófono) y `VOICE_AUTO_SUBMIT`.
+En el frontend, `front-kpa/js/config.js` tiene los *feature flags* `ENABLE_VOICE_INPUT` (mostrar u ocultar el micrófono) y `VOICE_AUTO_SUBMIT`.
 
 ## 5. Despliegue en PythonAnywhere
 

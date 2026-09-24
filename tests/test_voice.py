@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from backend.ai.speech.base import TranscriptionResult
-from backend.ai.speech.whisper import LanguageNotSupportedError, WhisperSpeechToText
 from backend.core.config import VoiceSettings
+from backend.services.speech.speech_provider import TranscriptionResult
+from backend.services.speech.whisper_service import LanguageNotSupportedError, WhisperSpeechToText
 
 
 class FakeSpeech:
@@ -21,7 +21,7 @@ class FakeSpeech:
 
 
 def test_transcribe_endpoint_contract(client, monkeypatch):
-    monkeypatch.setattr("backend.api.routes.ai.get_speech_provider", lambda: FakeSpeech())
+    monkeypatch.setattr("backend.controllers.assistant_controller.get_speech_provider", lambda: FakeSpeech())
     response = client.post("/api/ai/transcribe", files={"audio": ("q.webm", b"audio", "audio/webm")})
     assert response.status_code == 200
     body = response.json()

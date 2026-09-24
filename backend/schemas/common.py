@@ -1,4 +1,9 @@
-"""Modelos base y sobres de respuesta ({data, count, message}) que espera apiClient.js."""
+"""
+DTOs base y sobres de respuesta ({data, count, message}) que espera apiClient.js.
+
+Los esquemas de backend/schemas/ son el contrato de datos entre el Controlador y la
+Vista: los modelos devuelven estos objetos y FastAPI los serializa en camelCase.
+"""
 from __future__ import annotations
 
 from typing import Generic, TypeVar

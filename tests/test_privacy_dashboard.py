@@ -79,8 +79,8 @@ def test_dashboard_contract_and_filters(client):
     service = data["services"][0]
     filtered = client.get("/api/dashboard", params={"period": "30d", "service": service}).json()["data"]
     assert filtered["service"] == service and filtered["kpis"]["totalBeds"] <= kpis["totalBeds"]
-    assert client.get("/api/dashboard", params={"period": "siglo"}).status_code == 422
-    assert client.get("/api/dashboard", params={"service": "Marte"}).status_code == 422
+    assert client.get("/api/dashboard", params={"period": "siglo"}).status_code == 400
+    assert client.get("/api/dashboard", params={"service": "Marte"}).status_code == 400
 
 
 def test_health_reports_all_tables(client):

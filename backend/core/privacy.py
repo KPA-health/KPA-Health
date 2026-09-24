@@ -43,31 +43,41 @@ _PERSONAL_COLUMN = re.compile(
 
 
 def _normalize(text: str) -> str:
+    """Minúsculas sin tildes, para comparar nombres de columnas sin importar su escritura."""
     text = unicodedata.normalize("NFKD", text or "")
     return "".join(c for c in text if not unicodedata.combining(c)).lower()
 
 
-def patient_pseudonym(id_paciente: int | str | None) -> str:
-    return f"Paciente_{id_paciente}" if id_paciente not in (None, "") else "Paciente anónimo"
+def patient_pseudonym(patient_id: int | str | None) -> str:
+    """Seudónimo estable del paciente: nunca se muestra ni se guarda su nombre real."""
+    return f"Paciente_{patient_id}" if patient_id not in (None, "") else "Paciente anónimo"
 
 
 def hash_document(document: str) -> str:
-    """HMAC-SHA256 del documento normalizado (sin espacios, puntos ni guiones)."""
+    """
+    HMAC-SHA256 del documento normalizado (sin espacios, puntos ni guiones).
+
+    Se usa HMAC con secreto (y no un SHA-256 simple) porque el espacio de cédulas
+    es pequeño: sin el secreto, un atacante podría precalcular todos los hashes.
+    """
     normalized = _DOC_NORMALIZER.sub("", document or "").upper()
     secret = get_settings().privacy_salt.encode("utf-8")
     return hmac.new(secret, normalized.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def looks_like_document(text: str) -> bool:
+    """Heurística: 5-15 caracteres alfanuméricos con al menos 5 dígitos."""
     normalized = _DOC_NORMALIZER.sub("", text or "")
     return 5 <= len(normalized) <= 15 and sum(c.isdigit() for c in normalized) >= 5
 
 
 def mask_document(document_type: str | None) -> str:
+    """Documento enmascarado para la API: solo se revela el tipo (CC, TI...)."""
     return f"{document_type or 'Doc.'} {MASKED}"
 
 
 def is_personal_column(column_name: str) -> bool:
+    """True si el nombre de la columna sugiere un dato personal (nombre, documento, teléfono...)."""
     normalized = _normalize(column_name).replace("_", "").replace(" ", "")
     if any(token in normalized for token in _SAFE_COLUMN_TOKENS):
         return False

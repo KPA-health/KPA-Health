@@ -1,4 +1,4 @@
-"""Contratos de /doctors, /appointments, /rooms, /pharmacy y /stats (ver apiClient.js y mockData.js)."""
+"""DTOs de /doctors, /appointments, /rooms, /pharmacy y /stats (ver apiClient.js y mockData.js)."""
 from __future__ import annotations
 
 from pydantic import ConfigDict, Field

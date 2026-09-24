@@ -3,6 +3,11 @@ Configuración centralizada del backend.
 
 Todos los valores se leen de variables de entorno (archivo .env en la raíz del
 proyecto). Ningún secreto vive en el código: ver .env.example.
+
+Por qué dataclasses congeladas + ``lru_cache``: la configuración se lee una sola
+vez por proceso y nadie puede mutarla en tiempo de ejecución. Las pruebas que
+necesitan otra configuración cambian el entorno y llaman a
+``get_settings.cache_clear()``.
 """
 from __future__ import annotations
 
@@ -18,10 +23,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _env(name: str, default: str = "") -> str:
+    """Lee una variable de entorno como texto sin espacios sobrantes."""
     return os.getenv(name, default).strip()
 
 
 def _env_bool(name: str, default: bool) -> bool:
+    """Interpreta 1/true/yes/si/on como verdadero; vacío o ausente devuelve `default`."""
     raw = os.getenv(name)
     if raw is None or raw.strip() == "":
         return default
@@ -39,6 +46,7 @@ def _env_float(name: str, default: float) -> float:
 
 
 def _resolve_path(raw: str) -> Path:
+    """Las rutas relativas se resuelven contra la raíz del proyecto, no contra el cwd."""
     path = Path(raw)
     return path if path.is_absolute() else PROJECT_ROOT / path
 
@@ -71,6 +79,7 @@ class CloudAISettings:
 
 @dataclass(frozen=True)
 class AISettings:
+    """Parámetros del agente NL2SQL (comunes a los modos local y nube)."""
     default_mode: str        # "local" | "cloud"
     allow_fallback: bool     # si el modo pedido falla, ¿intentar el otro?
     summarize_results: bool  # segunda llamada al LLM para redactar la respuesta
@@ -114,13 +123,14 @@ class AuthSettings:
 
 @dataclass(frozen=True)
 class Settings:
+    """Configuración raíz de la aplicación."""
     app_name: str
     database_path: Path
     reference_datetime: str          # "auto" o "YYYY-MM-DD HH:MM:SS"
     privacy_salt: str                # secreto para el hash (HMAC) de documentos de identidad
     cors_origins: list[str] = field(default_factory=list)
     serve_frontend: bool = True
-    frontend_dir: Path = PROJECT_ROOT / "hospital-spa"
+    frontend_dir: Path = PROJECT_ROOT / "front-kpa"   # capa de Vista (SPA) servida en "/"
     max_upload_mb: int = 250
     ai: AISettings | None = None
     voice: VoiceSettings | None = None
@@ -129,6 +139,7 @@ class Settings:
 
 @lru_cache
 def get_settings() -> Settings:
+    """Construye (una sola vez) la configuración a partir del entorno y del archivo .env."""
     load_dotenv(PROJECT_ROOT / ".env", override=False)
 
     ai = AISettings(
@@ -200,6 +211,7 @@ def get_settings() -> Settings:
         privacy_salt=_env("PRIVACY_SALT", "kpa-health-hslv-demo-salt-cambiar-en-produccion"),
         cors_origins=origins or ["*"],
         serve_frontend=_env_bool("SERVE_FRONTEND", True),
+        frontend_dir=_resolve_path(_env("FRONTEND_DIR", "front-kpa")),
         max_upload_mb=_env_int("MAX_UPLOAD_MB", 250),
         ai=ai,
         voice=voice,
