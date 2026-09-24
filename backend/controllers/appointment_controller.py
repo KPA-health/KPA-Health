@@ -1,4 +1,4 @@
-"""Controlador de citas: /appointments (contrato de front-kpa/js/services/appointmentService.js)."""
+"""Controlador de citas: /appointments (contrato de frontend/js/services/appointmentService.js)."""
 from __future__ import annotations
 
 import sqlite3

@@ -5,10 +5,10 @@ Punto de entrada del backend (fábrica de la aplicación FastAPI).
 
 - API REST:   http://localhost:8000/api/...   (capa Controlador, backend/controllers)
 - Swagger:    http://localhost:8000/docs
-- Frontend:   http://localhost:8000/          (capa Vista, SPA de front-kpa/)
+- Frontend:   http://localhost:8000/          (capa Vista, SPA de frontend/)
 
 Arquitectura MVC:
-    Vista (front-kpa/)  --HTTP/JSON-->  Controladores  -->  Modelos  -->  SQLite
+    Vista (frontend/)  --HTTP/JSON-->  Controladores  -->  Modelos  -->  SQLite
                                               |
                                               +-->  Servicios (agente IA, Whisper, ETL, auth)
 """

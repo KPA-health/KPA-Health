@@ -1,4 +1,4 @@
-"""Controlador de farmacia: /pharmacy (contrato de front-kpa/js/services/pharmacyService.js)."""
+"""Controlador de farmacia: /pharmacy (contrato de frontend/js/services/pharmacyService.js)."""
 from __future__ import annotations
 
 import sqlite3

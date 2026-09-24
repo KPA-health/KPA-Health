@@ -1,4 +1,4 @@
-"""Controlador de pacientes: /patients (contrato de front-kpa/js/services/patientService.js)."""
+"""Controlador de pacientes: /patients (contrato de frontend/js/services/patientService.js)."""
 from __future__ import annotations
 
 import sqlite3

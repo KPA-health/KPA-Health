@@ -1,4 +1,4 @@
-"""Controlador de camas: /rooms (contrato de front-kpa/js/services/roomService.js)."""
+"""Controlador de camas: /rooms (contrato de frontend/js/services/roomService.js)."""
 from __future__ import annotations
 
 import sqlite3

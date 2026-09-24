@@ -1,4 +1,4 @@
-"""DTOs de /patients (ver front-kpa/js/services/patientService.js y mockData.js)."""
+"""DTOs de /patients (ver frontend/js/services/patientService.js y mockData.js)."""
 from __future__ import annotations
 
 from pydantic import ConfigDict, Field

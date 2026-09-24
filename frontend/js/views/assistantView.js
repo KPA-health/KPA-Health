@@ -22,7 +22,69 @@ MediPulse.AI = {
     this.renderModeSwitch();
     this.applyTechnicalView();
     this.setupVoiceInput();
+    this.showBriefing();            // en paralelo: el resumen proactivo no retrasa el chat
     await this.refreshProviders();
+  },
+
+  // Resumen proactivo (GET /api/insights/briefing): el asistente abre la conversación con las alertas
+  async showBriefing(end = null) {
+    const container = document.getElementById('ai-chat-messages');
+    if (!container) return;
+    let msg = document.getElementById('ai-briefing-msg');
+    if (!msg) {
+      msg = document.createElement('div');
+      msg.id = 'ai-briefing-msg';
+      msg.className = 'flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl';
+      const welcome = container.firstElementChild;
+      if (welcome) welcome.after(msg); else container.appendChild(msg);
+    }
+    msg.innerHTML = this.briefingShell(`
+      <div class="flex items-center gap-2 text-slate-500">
+        <div class="w-3.5 h-3.5 border-2 border-secondary border-t-transparent rounded-full animate-spin"></div>
+        <span>Revisando las alertas del hospital…</span>
+      </div>`);
+    try {
+      const data = await MediPulse.InsightsService.briefing(end);
+      msg.innerHTML = this.briefingShell(this.renderBriefing(data));
+    } catch (error) {
+      msg.innerHTML = this.briefingShell(
+        `<p class="text-slate-500">No pude revisar las alertas en este momento: ${MediPulse.UI.escape(error.message)}.</p>`);
+    }
+    lucide.createIcons();
+  },
+
+  briefingShell(content) {
+    return `
+      <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary text-white flex items-center justify-center shrink-0 shadow-sm">
+        <i data-lucide="bell-ring" class="w-4 h-4 sm:w-5 sm:h-5 text-tertiary"></i>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs text-slate-800 space-y-3 shadow-sm w-full min-w-0">
+        ${content}
+      </div>`;
+  },
+
+  renderBriefing(data) {
+    const e = v => MediPulse.UI.escape(v);
+    const items = (data.items || []).map(item => MediPulse.UI.alertCard(item)).join('');
+    const diagnoseButton = MediPulse.AuthService.can('dashboard') ? `
+      <button type="button" onclick="MediPulse.BI.openDiagnosis('${e(data.periodEnd || '')}')" class="px-3 py-1.5 rounded-lg bg-primary text-tertiary hover:bg-primary-dark text-[11px] font-bold flex items-center gap-1.5 transition-colors">
+        <i data-lucide="search" class="w-3.5 h-3.5"></i> Diagnosticar causa raíz de la espera
+      </button>` : '';
+    return `
+      <div class="flex items-center justify-between gap-2 flex-wrap">
+        <p class="font-bold text-primary flex items-center gap-1.5">
+          <i data-lucide="sparkles" class="w-4 h-4 text-secondary"></i> Resumen proactivo del hospital
+        </p>
+        <label class="text-[10px] text-slate-500 flex items-center gap-1">Analizar al
+          <input type="date" value="${e(data.periodEnd || '')}" onchange="MediPulse.AI.showBriefing(this.value)" class="border border-slate-200 rounded-md px-1.5 py-0.5 text-[10px] bg-white">
+        </label>
+      </div>
+      <p class="text-slate-700 leading-relaxed text-[13px]">${e(data.headline)}</p>
+      ${items}
+      <div class="flex flex-wrap items-center gap-2 pt-1">
+        ${diagnoseButton}
+        <span class="text-[10px] text-slate-400">Calculado con reglas y estadística sobre los datos del HIS, sin IA generativa.</span>
+      </div>`;
   },
 
   async refreshProviders() {

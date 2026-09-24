@@ -1,7 +1,7 @@
 """
 Controlador de carga de archivos del HIS: POST /api/upload/{type}.
 
-Contrato de MediPulse.DataSync.uploadFile (front-kpa): FormData con el campo
+Contrato de MediPulse.DataSync.uploadFile (frontend): FormData con el campo
 `file` y `type` en {paciente, triage, ingresos, atencion, medicamento, servicios, cirugia}.
 
 El controlador valida lo que depende de HTTP (extensión y tamaño del archivo) y
