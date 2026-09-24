@@ -10,6 +10,8 @@ Técnicas aplicadas:
 - Regla anti-preguntas: ante ambigüedad se asume la interpretación más razonable.
 - Defensa contra inyección: el texto del usuario es un dato, nunca una instrucción.
 - Prompt de redacción separado, con lista de términos técnicos prohibidos.
+- Gráficos sin IA (0 tokens): el tipo y los datos se deciden en el servidor con las filas reales
+  (chart_builder.py) y el navegador los dibuja con Chart.js. La redacción devuelve "mensaje_texto".
 """
 from __future__ import annotations
 
@@ -81,8 +83,8 @@ NL2SQL_SCHEMA = {
 }
 SUMMARY_SCHEMA = {
     "type": "object",
-    "properties": {"answer": {"type": "string"}},
-    "required": ["answer"],
+    "properties": {"mensaje_texto": {"type": "string"}},
+    "required": ["mensaje_texto"],
 }
 
 
@@ -132,7 +134,8 @@ una estimación a partir de la actividad clínica registrada; si son de inventar
 el stock es simulado a partir del consumo real. No inventes datos y no uses markdown.
 Cuando cuentes elementos, usa exactamente el total de resultados indicado.
 
-Responde SOLO con un objeto JSON: {"answer": "<tu respuesta en español>"}
+Responde SOLO con un objeto JSON: {"mensaje_texto": "<tu respuesta en español>"}
+El gráfico lo dibuja la interfaz con los mismos datos: no describas colores ni ejes.
 """.strip()
 
 

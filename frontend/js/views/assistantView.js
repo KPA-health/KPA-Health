@@ -17,6 +17,7 @@ MediPulse.AI = {
   maxRenderedRows: 50,
   recorder: null,
   recordingTimer: null,
+  charts: [],                 // gráficos Chart.js del chat (se destruyen al limpiar la conversación)
 
   async init() {
     const chat = document.getElementById('ai-chat-messages');
@@ -356,7 +357,9 @@ MediPulse.AI = {
     try {
       const data = await MediPulse.AIService.query(userQuery, this.mode);
       loadingMsg.remove();
-      chatContainer.appendChild(this.renderAnswer(data));
+      const aiMsg = this.renderAnswer(data);
+      chatContainer.appendChild(aiMsg);
+      this.mountChart(aiMsg, data);
     } catch (error) {
       loadingMsg.remove();
       chatContainer.appendChild(this.renderError(error.message));
@@ -428,6 +431,19 @@ MediPulse.AI = {
       ...(data.warnings || []).map(w => e(w))
     ].filter(Boolean);
 
+    // Gráfico determinista: el backend entrega tipo_grafico + datos_grafico (el LLM no dibuja nada)
+    const chartType = data.tipo_grafico;
+    const chart = hospital && MediPulse.ChatChart.isRenderable(chartType, data.datos_grafico)
+      ? MediPulse.ChatChart.shell(chartType, data.datos_grafico) : '';
+
+    // "Descargar datos" solo si hay una tabla o varias cifras que valga la pena exportar
+    const numericCells = rows.length === 1 ? rows[0].filter(cell => typeof cell === 'number').length : 0;
+    const exportable = hospital && data.success && (rows.length > 1 || numericCells > 1);
+    const downloadButton = exportable ? `
+      <button type="button" data-action="download-data" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-secondary hover:bg-secondary/5 text-[11px] font-bold flex items-center gap-1.5 transition-colors">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i> Descargar datos
+      </button>` : '';
+
     const shown = Math.min(rows.length, this.maxRenderedRows);
     const footer = [
       data.referenceDate ? `Datos al ${e(fmtDate(data.referenceDate))}` : '',
@@ -448,17 +464,45 @@ MediPulse.AI = {
           </p>
           <span class="ai-tech px-2 py-0.5 rounded-full text-[10px] font-bold bg-tertiary-light text-primary border border-tertiary">${e(engineLabel)}</span>
         </div>
-        <p class="text-slate-700 leading-relaxed text-[13px]">${e(MediPulse.Privacy.scrubText(data.answer))}</p>
+        <p class="text-slate-700 leading-relaxed text-[13px]">${e(MediPulse.Privacy.scrubText(data.mensaje_texto || data.answer))}</p>
+        ${chart}
         ${table}
         ${sqlBlock}
         ${technicalTable}
         ${attempts}
         ${technicalMeta.length ? `<div class="ai-tech text-[10px] text-slate-500 space-y-0.5">${technicalMeta.map(m => `<p>${m}</p>`).join('')}</div>` : ''}
-        ${footer ? `<p class="text-[10px] text-slate-400">${footer}</p>` : ''}
+        ${footer || downloadButton ? `
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <p class="text-[10px] text-slate-400">${footer}</p>
+          ${downloadButton}
+        </div>` : ''}
         ${data.fromMock ? '<p class="text-[10px] text-amber-700">Respuesta en modo respaldo con datos simulados: el motor de IA no está disponible.</p>' : ''}
       </div>
     `;
+    const download = aiMsg.querySelector('[data-action="download-data"]');
+    if (download) download.onclick = () => this.downloadAnswerData(data, labels, rows);
     return aiMsg;
+  },
+
+  /** Dibuja el gráfico del mensaje una vez insertado en el DOM (Chart.js necesita el tamaño real). */
+  mountChart(aiMsg, data) {
+    const container = aiMsg.querySelector('.ai-chart');
+    if (!container) return;
+    try {
+      // Al cambiar de tipo (barras/líneas/dona) se reemplaza la instancia para poder destruirla al limpiar
+      const replace = (previous, next) => { this.charts = this.charts.filter(c => c !== previous).concat(next); };
+      this.charts.push(MediPulse.ChatChart.mountInto(container, data.tipo_grafico, data.datos_grafico, replace));
+    } catch (error) {
+      console.warn('[MediPulse AI] No se pudo dibujar el gráfico:', error);
+      container.remove();
+    }
+  },
+
+  /** CSV con todas las filas de esa respuesta (ya enmascaradas), no solo las que se ven en pantalla. */
+  downloadAnswerData(data, labels, rows) {
+    const title = `Pregunta: ${MediPulse.Privacy.scrubText(data.question || '')}${data.referenceDate ? ` · datos al ${fmtDate(data.referenceDate)}` : ''}`;
+    MediPulse.ExportService.downloadCSV(MediPulse.ExportService.filename('consulta-ia', 'csv'), [{ title, headers: labels, rows }]);
+    MediPulse.UI.toast('Datos descargados en CSV', 'success');
   },
 
   renderTable(labels, rows) {
@@ -497,6 +541,8 @@ MediPulse.AI = {
   },
 
   clearHistory() {
+    this.charts.forEach(chart => chart.destroy());
+    this.charts = [];
     const container = document.getElementById('ai-chat-messages');
     container.innerHTML = `
       <div class="flex items-start space-x-2.5 sm:space-x-3.5 max-w-3xl">

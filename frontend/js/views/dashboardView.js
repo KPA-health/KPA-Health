@@ -14,6 +14,7 @@ MediPulse.BI = {
   refreshTimer: null,
   insightsEnd: null,          // fecha de análisis de alertas y causa raíz (null = fecha de referencia)
   insightsLoaded: false,
+  lastData: null,             // último GET /api/dashboard pintado (lo usa "Exportar reporte")
   palette: ['#1f4a2a', '#3b8070', '#9ed3a2', '#e11d48', '#f59e0b', '#3b82f6', '#8b5cf6', '#14b8a6', '#64748b', '#f97316'],
 
   applyFilters() {
@@ -80,6 +81,7 @@ MediPulse.BI = {
   paint(d) {
     const k = d.kpis || {};
     const esc = MediPulse.UI.escape;
+    this.lastData = d;
 
     // Encabezado: fecha de corte y origen de los datos
     const live = d.source !== 'mock';
@@ -373,6 +375,87 @@ MediPulse.BI = {
         scales: { x: { title: { display: true, text: 'minutos de cambio en la espera promedio' } } }
       }
     });
+  },
+
+  // 8. Exportar reporte: CSV con los KPIs y los datos de cada gráfico, o PDF visual del tablero
+  exportReport(format) {
+    const menu = document.getElementById('bi-export-menu');
+    if (menu) menu.open = false;
+    if (!this.lastData) {
+      MediPulse.UI.toast('Espere a que carguen los datos del dashboard', 'warning');
+      return;
+    }
+    return format === 'pdf' ? this.exportPDF() : this.exportCSV();
+  },
+
+  exportCSV() {
+    const d = this.lastData;
+    const k = d.kpis || {};
+    const trend = d.occupancyTrend || { labels: [], occupancyPct: [], admissions: [] };
+    const dist = d.serviceDistribution || { labels: [], values: [] };
+    const rotation = d.medicationRotation || { highest: [], lowest: [] };
+    const monthly = d.monthlyOccupancy || { months: [], rows: [] };
+    const sections = [
+      {
+        title: `Reporte KPA-Health · datos al ${fmtDate(d.referenceDate)} · ${d.periodLabel || ''} · ${d.service && d.service !== 'all' ? d.service : 'Todos los servicios'}`,
+        headers: ['Indicador', 'Valor'],
+        rows: [
+          ['Ocupación de camas (%)', k.occupancyRate],
+          ['Camas ocupadas', k.occupiedBeds],
+          ['Camas totales', k.totalBeds],
+          ['Espera promedio triaje a atención (min)', k.avgWaitMinutes],
+          ['Pacientes con espera medida', k.waitPatients],
+          ['Cirugías realizadas', k.surgeriesPerformed],
+          ['Cirugías programadas', k.surgeriesScheduled],
+          ['Cumplimiento quirúrgico (%)', k.surgeryComplianceRate],
+          ['Medicamentos en stock crítico', k.criticalMeds],
+          ['Medicamentos con menos de 5 días de inventario', k.medsUnder5Days],
+          ['Estancia promedio (días)', k.avgLengthOfStayDays],
+          ['Rotación de camas (ingresos/cama)', k.bedTurnover],
+          ['Origen de los datos', d.source === 'mock' ? 'Datos simulados' : 'hospital.db']
+        ]
+      },
+      { title: 'Capacidad por servicio', headers: ['Servicio', 'Ocupadas', 'Totales', 'Libres', 'No disponibles', 'Ocupación (%)'],
+        rows: (d.wards || []).map(w => [w.wing, w.occupied, w.total, w.free, w.unavailable || 0, w.occupancyPct]) },
+      { title: 'Tendencia de ocupación e ingresos', headers: ['Fecha', 'Ocupación (%)', 'Ingresos'],
+        rows: trend.labels.map((label, i) => [label, trend.occupancyPct[i], trend.admissions[i]]) },
+      { title: 'Ingresos por servicio', headers: ['Servicio', 'Ingresos'],
+        rows: dist.labels.map((label, i) => [label, dist.values[i]]) },
+      { title: 'Stock crítico de medicamentos', headers: ['Medicamento', 'Stock actual', 'Stock mínimo', 'Días de inventario', 'Estado'],
+        rows: (d.criticalMeds || []).map(m => [m.name, m.stock, m.minStock, m.daysOfInventory, m.status]) },
+      { title: 'Espera por nivel de triage', headers: ['Nivel de triage', 'Espera promedio (min)', 'Pacientes'],
+        rows: (d.waitByTriage || []).map(t => [t.level, t.avgMinutes, t.patients]) },
+      { title: 'Especialidades más solicitadas', headers: ['Especialidad', 'Ingresos'],
+        rows: (d.topSpecialties || []).map(s => [s.specialty, s.admissions]) },
+      { title: 'Rotación de farmacia (30 días)', headers: ['Grupo', 'Medicamento', 'Unidades dispensadas', 'Rotación (stock/mes)'],
+        rows: [
+          ...(rotation.highest || []).map(m => ['Mayor consumo', m.name, m.units30d, m.rotationIndex]),
+          ...(rotation.lowest || []).map(m => ['Menor consumo', m.name, m.units30d, m.rotationIndex])
+        ] },
+      { title: 'Ocupación promedio mensual por servicio (%)', headers: ['Servicio', ...monthly.months],
+        rows: monthly.rows.map(r => [r.service, ...r.values]) }
+    ].filter(section => section.rows.length);
+    MediPulse.ExportService.downloadCSV(MediPulse.ExportService.filename('dashboard', 'csv'), sections);
+    MediPulse.UI.toast('Reporte CSV descargado', 'success');
+  },
+
+  async exportPDF() {
+    const button = document.getElementById('bi-export-btn');
+    if (button) button.classList.add('opacity-60', 'pointer-events-none');
+    MediPulse.UI.toast('Generando el PDF del dashboard…', 'info');
+    try {
+      const d = this.lastData;
+      await MediPulse.ExportService.downloadElementPDF(
+        document.getElementById('view-bi'),
+        MediPulse.ExportService.filename('dashboard', 'pdf'),
+        { title: 'KPA-Health · Monitor Ejecutivo Institucional', subtitle: `Datos al ${fmtDate(d.referenceDate)} · ${d.periodLabel || ''}` }
+      );
+      MediPulse.UI.toast('Reporte PDF descargado', 'success');
+    } catch (error) {
+      MediPulse.UI.toast(`No se pudo generar el PDF: ${error.message}`, 'error');
+    } finally {
+      if (button) button.classList.remove('opacity-60', 'pointer-events-none');
+    }
   },
 
   syncServiceOptions(services, selected) {
