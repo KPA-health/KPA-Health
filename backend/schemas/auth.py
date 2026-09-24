@@ -1,4 +1,4 @@
-"""Contratos de autenticación."""
+"""DTOs de autenticación y administración de usuarios (contrato con authService.js)."""
 from __future__ import annotations
 
 from typing import Literal

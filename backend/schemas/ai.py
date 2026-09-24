@@ -1,4 +1,4 @@
-"""Contratos del asistente IA (NL2SQL)."""
+"""DTOs del asistente IA (NL2SQL y voz): contrato JSON con aiService.js e index.html."""
 from __future__ import annotations
 
 from typing import Any, Literal
@@ -32,8 +32,10 @@ class AIQueryResponse(CamelModel):
     answer: str
     explanation: str
     sql: str | None
-    category: str = Field(description="hospital | saludo | fuera_de_alcance | idioma_no_soportado | datos_personales | vacia")
-    blocked_by: str | None = Field(default=None, description="None | entrada (guardrail) | modelo")
+    category: str = Field(
+        description="hospital | greeting | out_of_scope | unsupported_language | personal_data | empty"
+    )
+    blocked_by: str | None = Field(default=None, description="None | input_guard | model")
     columns: list[str]
     column_labels: list[str] = Field(default_factory=list, description="Etiquetas legibles en español")
     rows: list[list[Any]]

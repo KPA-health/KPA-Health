@@ -4,8 +4,8 @@ import time
 import jwt
 import pytest
 
-from backend.auth.passwords import hash_password, verify_password
-from backend.auth.service import reset_attempts
+from backend.services.auth.auth_service import reset_attempts
+from backend.services.auth.password_hasher import hash_password, verify_password
 from backend.core.config import get_settings
 
 ADMIN = ("admin", "Admin2026*")

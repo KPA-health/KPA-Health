@@ -1,8 +1,8 @@
 """Pruebas unitarias de la primera barrera de seguridad del agente (sin base de datos)."""
 import pytest
 
-from backend.ai.nl2sql.service import parse_llm_output
-from backend.ai.nl2sql.sql_guard import SQLGuardError, validate_and_limit
+from backend.services.ai_agent.nl2sql_agent import parse_llm_output
+from backend.services.ai_agent.sql_guard import SQLGuardError, validate_and_limit
 
 
 @pytest.mark.parametrize("sql", [

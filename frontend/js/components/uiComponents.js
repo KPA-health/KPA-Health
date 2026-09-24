@@ -1,0 +1,171 @@
+/**
+ * MediPulse OS - Componentes de interfaz reutilizables: toasts, indicador de estado de la API y widget de accesibilidad.
+ * No dependen de ninguna vista; las vistas los usan a través de MediPulse.UI.
+ */
+
+window.MediPulse = window.MediPulse || {};
+
+// 6. COMPONENTES UI: TOASTS, ESTADO DE LA API & ACCESIBILIDAD
+MediPulse.UI = {
+  escape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  },
+
+  toast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    const colors = {
+      success: 'bg-emerald-800 text-white border-emerald-600',
+      error: 'bg-rose-800 text-white border-rose-600',
+      info: 'bg-primary text-white border-tertiary',
+      warning: 'bg-amber-800 text-white border-amber-600'
+    };
+    const icons = {
+      success: 'check-circle-2',
+      error: 'alert-circle',
+      info: 'info',
+      warning: 'alert-triangle'
+    };
+
+    el.className = `flex items-center space-x-2.5 px-4 py-3 rounded-xl border shadow-xl ${colors[type] || colors.info} transform transition-all duration-300 pointer-events-auto text-xs font-semibold translate-y-3 opacity-0`;
+    el.innerHTML = `
+      <i data-lucide="${icons[type] || 'info'}" class="w-4 h-4 shrink-0"></i>
+      <span class="flex-1">${this.escape(msg)}</span>
+    `;
+    container.appendChild(el);
+    lucide.createIcons();
+
+    requestAnimationFrame(() => {
+      el.classList.remove('translate-y-3', 'opacity-0');
+    });
+
+    setTimeout(() => {
+      el.classList.add('opacity-0', 'translate-x-4');
+      setTimeout(() => el.remove(), 300);
+    }, 3600);
+  },
+
+  describeApiStatus(status, reason) {
+    const labels = {
+      online: 'Conectado a la API REST real (hospital.db)',
+      fallback: `Modo respaldo con mockData.js${reason ? ` · ${reason}` : ''}`,
+      mock: 'Modo simulación forzado (mockData.js)',
+      offline: `Sin conexión con el backend${reason ? ` · ${reason}` : ''}`,
+      unknown: 'Comprobando conexión…'
+    };
+    return labels[status] || labels.unknown;
+  },
+
+  // Indicador de conexión del encabezado (verde = real, ámbar = respaldo, azul = simulación)
+  setApiStatus(status, reason = '') {
+    const styles = {
+      online: { pill: 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100', dot: 'bg-emerald-500', ping: 'bg-emerald-400', text: 'API Conectada (REST Real)' },
+      fallback: { pill: 'bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100', dot: 'bg-amber-500', ping: 'bg-amber-400', text: 'Modo Respaldo (Mock)' },
+      mock: { pill: 'bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100', dot: 'bg-blue-500', ping: 'bg-blue-400', text: 'Modo Simulación (Mock)' },
+      offline: { pill: 'bg-rose-50 border-rose-200 text-rose-800 hover:bg-rose-100', dot: 'bg-rose-500', ping: 'bg-rose-400', text: 'Sin Conexión' },
+      unknown: { pill: 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100', dot: 'bg-slate-400', ping: 'bg-slate-300', text: 'Conectando…' }
+    };
+    const s = styles[status] || styles.unknown;
+    const pill = document.getElementById('api-status-pill');
+    if (pill) pill.className = `flex items-center space-x-1.5 px-2.5 py-1 rounded-full border text-xs font-medium cursor-pointer transition-colors ${s.pill}`;
+    const dot = document.getElementById('api-status-dot');
+    if (dot) dot.className = `relative inline-flex rounded-full h-2 w-2 ${s.dot}`;
+    const ping = document.getElementById('api-status-ping');
+    if (ping) ping.className = `api-pulse absolute inline-flex h-full w-full rounded-full opacity-75 ${s.ping}`;
+    setText('api-status-text', s.text);
+    if (pill) pill.title = this.describeApiStatus(status, reason);
+
+    if (status === 'fallback' && this.lastStatus !== 'fallback') {
+      this.toast('Backend no disponible o sin datos: usando datos simulados (mockData.js)', 'warning');
+    } else if (status === 'online' && this.lastStatus === 'fallback') {
+      this.toast('Conexión con el backend restablecida', 'success');
+    }
+    this.lastStatus = status;
+  }
+};
+
+// Inicializador del Widget de Accesibilidad
+(function setupAccessibility() {
+  const btnAccess = document.getElementById('btn-accessibility');
+  const menuAccess = document.getElementById('accessibility-menu');
+  const btnReset = document.getElementById('btn-reset-accessibility');
+  const btnContrast = document.getElementById('btn-toggle-contrast');
+  const contrastKnob = document.getElementById('contrast-slider-knob');
+  const btnDyslexia = document.getElementById('btn-toggle-dyslexia');
+  const dyslexiaKnob = document.getElementById('dyslexia-slider-knob');
+  const fontButtons = document.querySelectorAll('.btn-font-size');
+
+  btnAccess.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuAccess.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('accessibility-dropdown-container').contains(e.target)) {
+      menuAccess.classList.add('hidden');
+    }
+  });
+
+  const sizes = { sm: 'font-size-sm', md: 'font-size-md', lg: 'font-size-lg', xl: 'font-size-xl' };
+  fontButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sz = btn.getAttribute('data-size');
+      Object.values(sizes).forEach(c => document.documentElement.classList.remove(c));
+      if (sz !== 'md') document.documentElement.classList.add(sizes[sz]);
+
+      fontButtons.forEach(b => {
+        b.classList.remove('bg-secondary', 'text-white');
+        b.classList.add('hover:border-secondary');
+      });
+      btn.classList.add('bg-secondary', 'text-white');
+      btn.classList.remove('hover:border-secondary');
+      localStorage.setItem('medipulse_font_size', sz);
+    });
+  });
+
+  let highContrast = localStorage.getItem('medipulse_contrast') === 'true';
+  function applyContrast(state) {
+    highContrast = state;
+    if (state) {
+      document.documentElement.classList.add('high-contrast-mode');
+      btnContrast.classList.remove('bg-slate-200');
+      btnContrast.classList.add('bg-secondary');
+      contrastKnob.classList.add('translate-x-5');
+    } else {
+      document.documentElement.classList.remove('high-contrast-mode');
+      btnContrast.classList.add('bg-slate-200');
+      btnContrast.classList.remove('bg-secondary');
+      contrastKnob.classList.remove('translate-x-5');
+    }
+    localStorage.setItem('medipulse_contrast', state);
+  }
+  btnContrast.addEventListener('click', () => applyContrast(!highContrast));
+  if (highContrast) applyContrast(true);
+
+  let dyslexia = localStorage.getItem('medipulse_dyslexia') === 'true';
+  function applyDyslexia(state) {
+    dyslexia = state;
+    if (state) {
+      document.body.classList.add('dyslexia-font');
+      btnDyslexia.classList.remove('bg-slate-200');
+      btnDyslexia.classList.add('bg-secondary');
+      dyslexiaKnob.classList.add('translate-x-5');
+    } else {
+      document.body.classList.remove('dyslexia-font');
+      btnDyslexia.classList.add('bg-slate-200');
+      btnDyslexia.classList.remove('bg-secondary');
+      dyslexiaKnob.classList.remove('translate-x-5');
+    }
+    localStorage.setItem('medipulse_dyslexia', state);
+  }
+  btnDyslexia.addEventListener('click', () => applyDyslexia(!dyslexia));
+  if (dyslexia) applyDyslexia(true);
+
+  btnReset.addEventListener('click', () => {
+    applyContrast(false);
+    applyDyslexia(false);
+    Object.values(sizes).forEach(c => document.documentElement.classList.remove(c));
+    localStorage.removeItem('medipulse_font_size');
+    MediPulse.UI.toast('Accesibilidad restablecida', 'info');
+  });
+})();

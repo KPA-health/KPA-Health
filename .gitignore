@@ -45,7 +45,8 @@ htmlcov/
 .ruff_cache/
 
 # ---- Modelos de IA descargados localmente (Whisper / Hugging Face) ------------
-models/
+# (anclado a la raíz: backend/models/ es la capa Modelo del MVC y SÍ se versiona)
+/models/
 .cache/
 *.gguf
 *.bin

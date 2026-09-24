@@ -1,6 +1,6 @@
 """
 Contrato REST: las respuestas deben tener exactamente la forma que consume
-hospital-spa (apiClient.js / services / mockData.js).
+front-kpa (apiClient.js / services / mockData.js).
 """
 import io
 
@@ -80,7 +80,7 @@ def test_rooms_and_bed_status(client):
     assert _bed_status(client, bed) == "Desinfección"
     client.put("/api/rooms/bed-status", json={"bedId": bed, "status": "Auto"})
     assert _bed_status(client, bed) == "Libre"
-    assert client.put("/api/rooms/bed-status", json={"bedId": bed, "status": "Rota"}).status_code == 422
+    assert client.put("/api/rooms/bed-status", json={"bedId": bed, "status": "Rota"}).status_code == 400
 
 
 def test_pharmacy_update_recalculates_status(client):
@@ -125,7 +125,7 @@ def test_upload_is_idempotent(client):
     assert second.json()["data"]["rowsInserted"] == 0
 
 
-def test_upload_applies_setup_db_cleaning(client):
+def test_upload_applies_initial_load_cleaning(client):
     content = (
         "TipoDocumento|IdPaciente|NombrePaciente|FechaNacimiento|Sexo|Asegurador|Regimen|Departamento|Municipio|Zona\n"
         "CC|990000001|NOMBRE REAL| 1990-01-01|Femenino| EPS X ||CAUCA|POPAYÁN|Urbana\n"
@@ -146,10 +146,10 @@ def test_upload_applies_setup_db_cleaning(client):
 def test_upload_validation_errors(client):
     bad_columns = client.post("/api/upload/triage",
                               files={"file": ("Triage.txt", io.BytesIO(b"A|B\n1|2\n"), "text/plain")})
-    assert bad_columns.status_code == 422 and "missingColumns" in bad_columns.json()["detail"]
+    assert bad_columns.status_code == 400 and "missingColumns" in bad_columns.json()["detail"]
     bad_type = client.post("/api/upload/camas",
                            files={"file": ("x.txt", io.BytesIO(b"A\n1\n"), "text/plain")})
-    assert bad_type.status_code == 422
+    assert bad_type.status_code == 400
     bad_ext = client.post("/api/upload/paciente",
                           files={"file": ("x.xlsx", io.BytesIO(b"x"), "application/octet-stream")})
-    assert bad_ext.status_code == 422
+    assert bad_ext.status_code == 400

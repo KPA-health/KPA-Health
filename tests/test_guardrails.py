@@ -1,9 +1,9 @@
 """Guardrails del asistente: idioma, alcance, saludos, datos personales y depuración de salida."""
 import pytest
 
-from backend.ai.guardrails.input_guard import evaluate_input
-from backend.ai.guardrails.language import detect_language
-from backend.ai.guardrails.output_guard import contains_forbidden_terms, guard_answer, sanitize_text
+from backend.services.ai_agent.guardrails.input_guard import evaluate_input
+from backend.services.ai_agent.guardrails.language import detect_language
+from backend.services.ai_agent.guardrails.output_guard import contains_forbidden_terms, guard_answer, sanitize_text
 from backend.core.privacy import is_personal_column, scrub_text
 
 
@@ -12,19 +12,19 @@ from backend.core.privacy import is_personal_column, scrub_text
     ("Top 10 medicamentos de mayor rotación", "hospital"),
     ("¿Cómo afecta el clima a los ingresos por neumonía?", "hospital"),
     ("Nombres de los medicamentos con stock crítico", "hospital"),
-    ("How many ICU beds are occupied today?", "idioma_no_soportado"),
-    ("What is the average wait time in urgencias?", "idioma_no_soportado"),
-    ("¿Cómo estará el clima mañana en Popayán?", "fuera_de_alcance"),
-    ("¿Qué opinas del gobierno?", "fuera_de_alcance"),
-    ("¿Quién ganó el partido de fútbol ayer?", "fuera_de_alcance"),
-    ("¿Cuál es la capital de Francia?", "fuera_de_alcance"),
-    ("hola", "saludo"),
-    ("Buenos días!", "saludo"),
-    ("gracias", "saludo"),
-    ("¿Cuál es la cédula del paciente 614996?", "datos_personales"),
-    ("Dame los nombres de los pacientes en UCI", "datos_personales"),
-    ("dame el nombre del médico de guardia", "datos_personales"),
-    ("??", "vacia"),
+    ("How many ICU beds are occupied today?", "unsupported_language"),
+    ("What is the average wait time in urgencias?", "unsupported_language"),
+    ("¿Cómo estará el clima mañana en Popayán?", "out_of_scope"),
+    ("¿Qué opinas del gobierno?", "out_of_scope"),
+    ("¿Quién ganó el partido de fútbol ayer?", "out_of_scope"),
+    ("¿Cuál es la capital de Francia?", "out_of_scope"),
+    ("hola", "greeting"),
+    ("Buenos días!", "greeting"),
+    ("gracias", "greeting"),
+    ("¿Cuál es la cédula del paciente 614996?", "personal_data"),
+    ("Dame los nombres de los pacientes en UCI", "personal_data"),
+    ("dame el nombre del médico de guardia", "personal_data"),
+    ("??", "empty"),
 ])
 def test_input_guard_categories(question, category):
     assert evaluate_input(question).category == category
