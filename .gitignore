@@ -76,3 +76,6 @@ node_modules/
 
 # ---- Herramientas locales -----------------------------------------------------
 graphify-out/
+
+# ---- Streamlit ----------------------------------------------------------------
+.streamlit/secrets.toml

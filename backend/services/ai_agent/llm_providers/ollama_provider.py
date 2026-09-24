@@ -39,6 +39,8 @@ class OllamaProvider(LLMProvider):
         self.mode = mode
         self.model = settings.model
         self._base_url = settings.ollama_base_url
+        # Un túnel protegido con usuario:clave en la URL no debe mostrar la clave en los mensajes
+        self._display_url = str(httpx.URL(self._base_url).copy_with(username=None, password=None))
         self._keep_alive = settings.keep_alive
         self._num_ctx = settings.num_ctx
         self._think_mode = settings.think
@@ -74,7 +76,7 @@ class OllamaProvider(LLMProvider):
                 response = await client.post(f"{self._base_url}/api/chat", json=payload)
         except httpx.ConnectError as exc:
             raise ProviderUnavailableError(
-                f"No se pudo conectar con Ollama en {self._base_url}. ¿Está corriendo `ollama serve`?"
+                f"No se pudo conectar con Ollama en {self._display_url}. ¿Está corriendo `ollama serve`?"
             ) from exc
         except httpx.TimeoutException as exc:
             raise ProviderError(f"Ollama no respondió en {self._timeout:.0f} s") from exc
@@ -114,7 +116,7 @@ class OllamaProvider(LLMProvider):
                 response = await client.get(f"{self._base_url}/api/tags")
             response.raise_for_status()
         except httpx.HTTPError:
-            return ProviderHealth(False, f"Ollama no responde en {self._base_url}")
+            return ProviderHealth(False, f"Ollama no responde en {self._display_url}")
         models = {m.get("name") for m in response.json().get("models", [])}
         if self.model not in models and f"{self.model}:latest" not in models:
             return ProviderHealth(False, f"Modelo '{self.model}' no descargado (ollama pull {self.model})")

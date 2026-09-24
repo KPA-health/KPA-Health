@@ -214,7 +214,28 @@ FastAPI es una app ASGI; PythonAnywhere la soporta mediante su función de **sit
 > - **Salida a internet:** las cuentas gratuitas solo pueden llamar a dominios de una lista permitida. Confirma que `openrouter.ai` o `generativelanguage.googleapis.com` estén incluidos.
 > - Los sitios ASGI están en beta y los comandos pueden cambiar.
 
-## 6. Tecnologías utilizadas
+## 6. Despliegue en Streamlit Community Cloud
+
+La carpeta `streamlit_app/` contiene una interfaz en Streamlit (asistente IA, dashboard y alertas) que usa el backend directamente, sin la API HTTP ni la SPA. El switch **Local/Nube** se mantiene: la barra lateral muestra qué modo responde y, si el modo por defecto no está disponible, preselecciona el otro.
+
+1. Sube el repositorio a GitHub. `hospital.db` y los secretos no se suben; la base se construye sola desde `data/` en el primer arranque (unos 20 s y ~900 MB de RAM).
+2. En [share.streamlit.io](https://share.streamlit.io) → **Create app**:
+   - **Main file path:** `streamlit_app/app.py` (las dependencias se toman de `streamlit_app/requirements.txt`).
+   - **Advanced settings → Python:** 3.11 o 3.12 (pandas 3 no funciona con versiones anteriores).
+   - **Secrets:** pega el contenido de `streamlit_app/secrets.toml.example` con tus valores. Las contraseñas deben tener **8 caracteres o más**; si no, no se crean los usuarios.
+3. **Modo nube (OpenAI):** `CLOUD_OPENAI_BASE_URL=https://api.openai.com/v1`, `CLOUD_OPENAI_API_KEY` y `CLOUD_OPENAI_MODEL`. También sirve OpenRouter o Groq cambiando la URL y el modelo.
+4. **Modo local (Ollama):** Streamlit Cloud no puede ejecutar el modelo (sin GPU y con ~2.7 GB de RAM). Se sigue usando el Ollama de tu equipo, expuesto con un túnel protegido con contraseña:
+   ```bash
+   ollama serve
+   ngrok http 11434 --host-header="localhost:11434" --basic-auth "kpa:una-clave-larga"
+   ```
+   Y en los secrets: `OLLAMA_BASE_URL = "https://kpa:una-clave-larga@<subdominio>.ngrok-free.app"`. La clave viaja como Basic Auth y no se muestra en la interfaz. El modo local solo funciona mientras tu equipo y el túnel estén encendidos; las preguntas y resultados viajan hasta tu equipo.
+
+> ⚠️ En Streamlit Cloud el disco es temporal: al reiniciar o redesplegar se reconstruye `hospital.db` desde `data/`, y se pierden los usuarios creados desde la app y las cargas de archivos. La voz (Whisper) queda desactivada.
+
+Para probarlo en local: `pip install streamlit` y `streamlit run streamlit_app/app.py` (usa tu `.env`).
+
+## 7. Tecnologías utilizadas
 
 **Backend**
 - Python 3.11 · **FastAPI** · Uvicorn · Pydantic v2 · python-dotenv · python-multipart
@@ -238,7 +259,7 @@ FastAPI es una app ASGI; PythonAnywhere la soporta mediante su función de **sit
 **Herramientas**
 - Git / GitHub · Swagger (OpenAPI) · PythonAnywhere (despliegue)
 
-## 7. Roles del equipo y autores
+## 8. Roles del equipo y autores
 
 | Integrante | Rol | Aportes |
 |---|---|---|
@@ -247,7 +268,7 @@ FastAPI es una app ASGI; PythonAnywhere la soporta mediante su función de **sit
 |  |  |  |
 |  |  |  |
 
-## 8. Seguridad y privacidad
+## 9. Seguridad y privacidad
 
 - Las credenciales van solo en `.env`, que nunca se sube (`.gitignore`).
 - Login con JWT firmado (HS256) y control de acceso por roles en cada endpoint. Las contraseñas se guardan con PBKDF2-SHA256 (600.000 iteraciones) y hay bloqueo temporal tras 5 intentos fallidos.

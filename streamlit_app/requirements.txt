@@ -1,0 +1,12 @@
+# Dependencias para Streamlit Community Cloud (se leen desde la carpeta del entrypoint).
+# Sin Whisper ni pytest: la voz queda desactivada (VOICE_ENABLED=false).
+streamlit>=1.40
+fastapi==0.141.1          # el agente usa starlette.concurrency y los esquemas pydantic del backend
+python-multipart==0.0.32
+pydantic==2.13.5
+python-dotenv==1.2.3
+PyJWT==2.15.0
+pandas==3.0.6
+scikit-learn>=1.5,<2
+httpx==0.28.1
+sqlglot==30.19.0
