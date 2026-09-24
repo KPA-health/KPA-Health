@@ -77,9 +77,13 @@ class OpenAICompatibleProvider(LLMProvider):
     async def health(self) -> ProviderHealth:
         if not self._base_url or not self.model:
             return ProviderHealth(False, "base_url o modelo sin configurar en .env")
+        # La primera conexión a una API en la nube (DNS + TLS) puede superar los 4 s
+        timeout = 4 if self.mode == "local" else 10
         try:
-            async with httpx.AsyncClient(timeout=4) as client:
+            async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.get(f"{self._base_url}/models", headers=self._headers())
+        except httpx.TimeoutException:
+            return ProviderHealth(False, f"{self._base_url} no respondió en {timeout} s")
         except httpx.HTTPError:
             return ProviderHealth(False, f"Sin conexión con {self._base_url}")
         if response.status_code == 200:
